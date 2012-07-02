@@ -1498,6 +1498,15 @@ static void loc_eng_deferred_action_thread(void* arg)
                     // turn off the session flag.
                     loc_eng_data_p->client_handle->setInSession(false);
                 }
+
+                // Free the allocated memory for rawData
+                GpsLocation* gp = (GpsLocation*)&(rpMsg->location);
+                if (gp != NULL && gp->rawData != NULL)
+                {
+                    delete (char*)gp->rawData;
+                    gp->rawData = NULL;
+                    gp->rawDataSize = 0;
+                }
             }
 
             break;
@@ -1851,6 +1860,19 @@ bool loc_eng_inject_raw_command(loc_eng_data_s_type &loc_eng_data,
     boolean ret_val;
     LOC_LOGD("loc_eng_send_extra_command: %s\n", command);
     ret_val = TRUE;
+
+    if((loc_eng_data.ulp_initialized == true) && (gps_conf.CAPABILITIES & ULP_CAPABILITY))
+    {
+        ulp_msg_inject_raw_command *msg(
+            new ulp_msg_inject_raw_command(&loc_eng_data,command, length));
+        msg_q_snd( (void*)((LocEngContext*)(loc_eng_data.context))->ulp_q
+                   , msg, loc_eng_free_msg);
+        ret_val = 0;
+    }else
+    {
+        ret_val = -1;
+    }
+
 
     EXIT_LOG(%s, loc_logger_boolStr[ret_val!=0]);
     return ret_val;

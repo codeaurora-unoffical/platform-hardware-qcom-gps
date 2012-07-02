@@ -749,6 +749,26 @@ struct ulp_msg_update_criteria : public loc_eng_msg {
     }
 };
 
+struct ulp_msg_inject_raw_command : public loc_eng_msg {
+    const char* rawCommand;
+    const int rawCommandLength;
+    inline ulp_msg_inject_raw_command (void* instance, char* command, int length) :
+        loc_eng_msg(instance, ULP_MSG_INJECT_RAW_COMMAND),
+        rawCommand(new char[length]),
+        rawCommandLength(length)
+    {
+      memcpy((void*)rawCommand, (void*)command, length);
+      LOC_LOGV("inject raw command: command %s\n  command length: %d\n ",
+             rawCommand,
+             rawCommandLength);
+    }
+
+    inline ~ulp_msg_inject_raw_command()
+    {
+        delete[] rawCommand;
+    }
+};
+
 struct ulp_msg_inject_phone_context_settings : public loc_eng_msg {
     const UlpPhoneContextSettings phoneSetting;
     inline ulp_msg_inject_phone_context_settings(void* instance, UlpPhoneContextSettings setting) :
