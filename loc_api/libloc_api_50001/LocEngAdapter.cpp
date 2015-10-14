@@ -210,14 +210,14 @@ void LocInternalAdapter::reportDrNMEA(long long int timestamp,
 
 }
 
-void LocInternalAdapter::reportSv(GpsSvStatus &svStatus,
+void LocInternalAdapter::reportSv(GnssSvStatus &svStatus,
                                   GpsLocationExtended &locationExtended,
                                   void* svExt){
     sendMsg(new LocEngReportSv(mLocEngAdapter, svStatus,
                                locationExtended, svExt));
 }
 
-void LocEngAdapter::reportSv(GpsSvStatus &svStatus,
+void LocEngAdapter::reportSv(GnssSvStatus &svStatus,
                              GpsLocationExtended &locationExtended,
                              void* svExt)
 {
