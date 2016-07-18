@@ -52,6 +52,8 @@
 #define STR_SURF      "Surf"
 #define STR_MTP       "MTP"
 #define STR_APQ       "apq"
+#define STR_APQ_NO_WGR  "baseband_apq_nowgr"
+
 #define IS_STR_END(c) ((c) == '\0' || (c) == '\n' || (c) == '\r')
 #define LENGTH(s) (sizeof(s) - 1)
 #define GPS_CHECK_NO_ERROR 0
@@ -206,7 +208,7 @@ unsigned int loc_get_target(void)
     loc_get_target_ram( &deviceRAM );
 
     if (deviceRAM <= 256 ) {
-        gTarget = TARGET_MPQ; //GNSS_NONE
+        gTarget = TARGET_NO_GNSS; //GNSS_NONE
         goto detected;
     }
 
@@ -224,10 +226,15 @@ unsigned int loc_get_target(void)
         read_a_line(id_dep, rd_id, LINE_LEN);
     }
 
+    if( !memcmp(baseband, STR_APQ_NO_WGR, LENGTH(STR_APQ_NO_WGR)) ){
+        gTarget = TARGET_NO_GNSS;
+        goto detected;
+    }
+
     if( !memcmp(baseband, STR_APQ, LENGTH(STR_APQ)) ){
         if( !memcmp(rd_id, MPQ8064_ID_1, LENGTH(MPQ8064_ID_1))
             && IS_STR_END(rd_id[LENGTH(MPQ8064_ID_1)]) )
-            gTarget = TARGET_MPQ;
+            gTarget = TARGET_NO_GNSS;
         else
             gTarget = TARGET_APQ_SA;
     }
