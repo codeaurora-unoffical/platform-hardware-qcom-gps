@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2009-2014, 2016 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -161,6 +161,8 @@ typedef struct loc_gps_cfg_s
     uint32_t       A_GLONASS_POS_PROTOCOL_SELECT;
     uint32_t       AGPS_CERT_WRITABLE_MASK;
     uint32_t       EXTERNAL_DR_ENABLED;
+    uint32_t       LPPE_CP_TECHNOLOGY;
+    uint32_t       LPPE_UP_TECHNOLOGY;
 } loc_gps_cfg_s_type;
 
 /* NOTE: the implementaiton of the parser casts number
