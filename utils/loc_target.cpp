@@ -65,14 +65,6 @@
 
 static unsigned int gTarget = (unsigned int)-1;
 
-static inline void loc_get_target_ram(uint32_t *ram)
-{
-    char deviceRAM[PROPERTY_VALUE_MAX];
-    property_get("ro.device.ram", deviceRAM, "512");
-    *ram = atoi(deviceRAM);
-    LOC_LOGD("%s:%d]: ram: %04x\n", __func__, __LINE__, ram);
-}
-
 static int read_a_line(const char * file_path, char * line, int line_size)
 {
     FILE *fp;
@@ -196,20 +188,11 @@ unsigned int loc_get_target(void)
     char rd_id[LINE_LEN];
     char rd_mdm[LINE_LEN];
     char baseband[LINE_LEN];
-    uint32_t deviceRAM;
 
     if (is_qca1530()) {
         gTarget = TARGET_QCA1530;
         goto detected;
     }
-
-    loc_get_target_ram( &deviceRAM );
-
-    if (deviceRAM <= 256 ) {
-        gTarget = TARGET_MPQ; //GNSS_NONE
-        goto detected;
-    }
-
 
     loc_get_target_baseband(baseband, sizeof(baseband));
 
