@@ -67,6 +67,17 @@
 
 static unsigned int gTarget = (unsigned int)-1;
 
+static inline bool loc_get_gps_status()
+{
+    char gps_status[PROPERTY_VALUE_MAX];
+    bool res = false;
+    property_get("ro.gps.enabled", gps_status, "true");
+    LOC_LOGD("%s:%d]: gps_status: %s\n", __func__, __LINE__, gps_status);
+    res = (strncmp(gps_status, "true", sizeof("true")) == 0);
+    LOC_LOGD("gps_status = %s", res ? "true" : "false");
+    return res;
+}
+
 static int read_a_line(const char * file_path, char * line, int line_size)
 {
     FILE *fp;
@@ -190,6 +201,13 @@ unsigned int loc_get_target(void)
     char rd_id[LINE_LEN];
     char rd_mdm[LINE_LEN];
     char baseband[LINE_LEN];
+
+    bool status = loc_get_gps_status();
+
+    if (!status) {
+        gTarget = TARGET_MPQ; //GNSS_NONE
+        goto detected;
+    }
 
     if (is_qca1530()) {
         gTarget = TARGET_QCA1530;
