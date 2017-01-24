@@ -52,6 +52,8 @@
 #define STR_SURF      "Surf"
 #define STR_MTP       "MTP"
 #define STR_APQ       "apq"
+#define STR_APQ_NO_WGR  "baseband_apq_nowgr"
+
 #define IS_STR_END(c) ((c) == '\0' || (c) == '\n' || (c) == '\r')
 #define LENGTH(s) (sizeof(s) - 1)
 #define GPS_CHECK_NO_ERROR 0
@@ -64,6 +66,14 @@
 #define QCA1530_DETECT_PROGRESS "detect"
 
 static unsigned int gTarget = (unsigned int)-1;
+
+static inline void loc_get_target_ram(uint32_t *ram)
+{
+    char deviceRAM[PROPERTY_VALUE_MAX];
+    property_get("ro.device.ram", deviceRAM, "512");
+    *ram = atoi(deviceRAM);
+    LOC_LOGD("%s:%d]: ram: %04x\n", __func__, __LINE__, ram);
+}
 
 static int read_a_line(const char * file_path, char * line, int line_size)
 {
@@ -188,11 +198,20 @@ unsigned int loc_get_target(void)
     char rd_id[LINE_LEN];
     char rd_mdm[LINE_LEN];
     char baseband[LINE_LEN];
+    uint32_t deviceRAM;
 
     if (is_qca1530()) {
         gTarget = TARGET_QCA1530;
         goto detected;
     }
+
+    loc_get_target_ram( &deviceRAM );
+
+    if (deviceRAM <= 256 ) {
+        gTarget = TARGET_NO_GNSS; //GNSS_NONE
+        goto detected;
+    }
+
 
     loc_get_target_baseband(baseband, sizeof(baseband));
 
@@ -207,10 +226,15 @@ unsigned int loc_get_target(void)
         read_a_line(id_dep, rd_id, LINE_LEN);
     }
 
+    if( !memcmp(baseband, STR_APQ_NO_WGR, LENGTH(STR_APQ_NO_WGR)) ){
+        gTarget = TARGET_NO_GNSS;
+        goto detected;
+    }
+
     if( !memcmp(baseband, STR_APQ, LENGTH(STR_APQ)) ){
         if( !memcmp(rd_id, MPQ8064_ID_1, LENGTH(MPQ8064_ID_1))
             && IS_STR_END(rd_id[LENGTH(MPQ8064_ID_1)]) )
-            gTarget = TARGET_MPQ;
+            gTarget = TARGET_NO_GNSS;
         else
             gTarget = TARGET_APQ_SA;
     }
