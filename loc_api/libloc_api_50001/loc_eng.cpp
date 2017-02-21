@@ -54,7 +54,7 @@
 #include <loc_eng_dmn_conn.h>
 #include <loc_eng_dmn_conn_handler.h>
 #include <loc_eng_msg.h>
-#include <loc_eng_nmea.h>
+#include <loc_nmea.h>
 #include <msg_q.h>
 #include <loc.h>
 #include <platform_lib_includes.h>
@@ -63,14 +63,6 @@
 
 #define SUCCESS TRUE
 #define FAILURE FALSE
-
-#ifndef GPS_CONF_FILE
-#define GPS_CONF_FILE            "/etc/gps.conf"   //??? platform independent
-#endif
-
-#ifndef SAP_CONF_FILE
-#define SAP_CONF_FILE            "/etc/sap.conf"
-#endif
 
 #define XTRA1_GPSONEXTRA         "xtra1.gpsonextra.net"
 
@@ -782,6 +774,7 @@ void LocEngReportPosition::proc() const {
     if (locEng->mute_session_state != LOC_MUTE_SESS_IN_SESSION) {
         bool reported = false;
         if (locEng->location_cb != NULL) {
+            adapter->clearGnssSvUsedListData();
             if (LOC_SESS_FAILURE == mStatus) {
                 // in case we want to handle the failure case
                 locEng->location_cb(NULL, NULL);
@@ -840,10 +833,17 @@ void LocEngReportPosition::proc() const {
         if (locEng->generateNmea &&
             locEng->adapter->isInSession())
         {
+            std::vector<std::string> nmeaArraystr;
             unsigned char generate_nmea = reported &&
                                           (mStatus != LOC_SESS_FAILURE);
-            loc_eng_nmea_generate_pos(locEng, mLocation, mLocationExtended,
-                                      generate_nmea);
+            loc_nmea_generate_pos(mLocation, mLocationExtended, generate_nmea, nmeaArraystr);
+            struct timeval tv;
+            gettimeofday(&tv,  NULL);
+            int64_t now = tv.tv_sec * 1000LL + tv.tv_usec / 1000;
+            for(int i = 0; i < nmeaArraystr.size(); i++) {
+                if (locEng->nmea_cb != NULL)
+                   locEng->nmea_cb(now, nmeaArraystr[i].c_str(), nmeaArraystr[i].length());
+            }
         }
 
         // Free the allocated memory for rawData
@@ -936,7 +936,17 @@ void LocEngReportSv::proc() const {
 
         if (locEng->generateNmea)
         {
-            loc_eng_nmea_generate_sv(locEng, gnssSvStatus, mLocationExtended);
+            std::vector<std::string> nmeaArraystr;
+            loc_nmea_generate_sv(gnssSvStatus, mLocationExtended, nmeaArraystr);
+            struct timeval tv;
+            gettimeofday(&tv,  NULL);
+            int64_t now = tv.tv_sec * 1000LL + tv.tv_usec / 1000;
+            for(int i = 0; i < nmeaArraystr.size(); i++) {
+                if (locEng->nmea_cb != NULL)
+                   locEng->nmea_cb(now, nmeaArraystr[i].c_str(), nmeaArraystr[i].length());
+
+            }
+
         }
     }
 }
@@ -2117,12 +2127,21 @@ int loc_eng_set_position_mode(loc_eng_data_s_type &loc_eng_data,
     ENTRY_LOG_CALLFLOW();
     INIT_CHECK(loc_eng_data.adapter, return -1);
 
-    // The position mode for AUTO/GSS/QCA1530 can only be standalone
-    if (!(gps_conf.CAPABILITIES & LOC_GPS_CAPABILITY_MSB) &&
-        !(gps_conf.CAPABILITIES & LOC_GPS_CAPABILITY_MSA) &&
-        (params.mode != LOC_POSITION_MODE_STANDALONE)) {
+    // When MSA tracking session is triggered, fallback to MSB based
+    // tracking if MSB is supported or standalone tracking
+    if (params.mode == LOC_POSITION_MODE_MS_ASSISTED) {
+        if (params.recurrence == LOC_GPS_POSITION_RECURRENCE_PERIODIC) {
+            params.mode = LOC_POSITION_MODE_MS_BASED;
+        } else if (!(ContextBase::getCarrierCapabilities() & LOC_GPS_CAPABILITY_MSA)) {
+            // MSA is not supported, default to standalone
+            params.mode = LOC_POSITION_MODE_STANDALONE;
+        }
+    }
+
+    if (params.mode == LOC_POSITION_MODE_MS_BASED &&
+            !(ContextBase::getCarrierCapabilities() & LOC_GPS_CAPABILITY_MSB)) {
+        // If MSB is not supported, default to standalone
         params.mode = LOC_POSITION_MODE_STANDALONE;
-        LOC_LOGD("Position mode changed to standalone for target with AUTO/GSS/qca1530.");
     }
 
     if(! loc_eng_data.adapter->getUlpProxy()->sendFixMode(params))
@@ -3038,8 +3057,8 @@ int loc_eng_read_config(void)
       loc_default_parameters();
       // We only want to parse the conf file once. This is a good place to ensure that.
       // In fact one day the conf file should go into context.
-      UTIL_READ_CONF(GPS_CONF_FILE, gps_conf_table);
-      UTIL_READ_CONF(SAP_CONF_FILE, sap_conf_table);
+      UTIL_READ_CONF(LOC_PATH_GPS_CONF, gps_conf_table);
+      UTIL_READ_CONF(LOC_PATH_SAP_CONF, sap_conf_table);
       configAlreadyRead = true;
     } else {
       LOC_LOGV("GPS Config file has already been read\n");

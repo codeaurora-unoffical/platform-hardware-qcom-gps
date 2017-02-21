@@ -10,14 +10,14 @@ libloc_adapter_so_la_SOURCES = loc_eng_log.cpp LocEngAdapter.cpp
 
 if USE_GLIB
 libloc_adapter_so_la_CFLAGS = -DUSE_GLIB $(AM_CFLAGS) @GLIB_CFLAGS@
-libloc_adapter_so_la_LDFLAGS = -lstdc++ -lpthread @GLIB_LIBS@ -shared -version-info 1:0:0
+libloc_adapter_so_la_LDFLAGS = -lstdc++ -Wl,-z,defs -lpthread @GLIB_LIBS@ -shared -version-info 1:0:0
 libloc_adapter_so_la_CPPFLAGS = -DUSE_GLIB $(AM_CFLAGS) $(AM_CPPFLAGS) @GLIB_CFLAGS@
 else
 libloc_adapter_so_la_CFLAGS = $(AM_CFLAGS)
-libloc_adapter_so_la_LDFLAGS = -lpthread -shared -version-info 1:0:0
+libloc_adapter_so_la_LDFLAGS = -Wl,-z,defs -lpthread -shared -version-info 1:0:0
 libloc_adapter_so_la_CPPFLAGS = $(AM_CFLAGS) $(AM_CPPFLAGS)
 endif
-libloc_adapter_so_la_LIBADD = -lstdc++ -lcutils ../../utils/libgps_utils_so.la
+libloc_adapter_so_la_LIBADD = -lstdc++ -lcutils $(GPSUTILS_LIBS)
 
 
 libloc_eng_so_la_SOURCES = \
@@ -36,15 +36,15 @@ libloc_eng_so_la_SOURCES = \
 
 if USE_GLIB
 libloc_eng_so_la_CFLAGS = -DUSE_GLIB $(AM_CFLAGS) @GLIB_CFLAGS@
-libloc_eng_so_la_LDFLAGS = -lstdc++ -lpthread @GLIB_LIBS@ -shared -version-info 1:0:0
+libloc_eng_so_la_LDFLAGS = -lstdc++ -Wl,-z,defs -lpthread @GLIB_LIBS@ -shared -version-info 1:0:0
 libloc_eng_so_la_CPPFLAGS = -DUSE_GLIB $(AM_CFLAGS) $(AM_CPPFLAGS) @GLIB_CFLAGS@
 else
 libloc_eng_so_la_CFLAGS = $(AM_CFLAGS)
-libloc_eng_so_la_LDFLAGS = -lpthread -shared -version-info 1:0:0
+libloc_eng_so_la_LDFLAGS = -Wl,-z,defs -lpthread -shared -version-info 1:0:0
 libloc_eng_so_la_CPPFLAGS = $(AM_CFLAGS) $(AM_CPPFLAGS)
 endif
 
-libloc_eng_so_la_LIBADD = -lstdc++ -lcutils -ldl ../../utils/libgps_utils_so.la libloc_adapter_so.la
+libloc_eng_so_la_LIBADD = -lstdc++ -lcutils -ldl $(GPSUTILS_LIBS) libloc_adapter_so.la
 
 library_include_HEADERS = \
    LocEngAdapter.h \
