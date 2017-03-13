@@ -46,6 +46,7 @@
 #include <time.h>
 #include <new>
 #include <LocEngAdapter.h>
+#include <SystemStatus.h>
 
 
 #include <string.h>
@@ -54,7 +55,7 @@
 #include <loc_eng_dmn_conn.h>
 #include <loc_eng_dmn_conn_handler.h>
 #include <loc_eng_msg.h>
-#include <loc_eng_nmea.h>
+#include <loc_nmea.h>
 #include <msg_q.h>
 #include <loc.h>
 #include <platform_lib_includes.h>
@@ -774,6 +775,7 @@ void LocEngReportPosition::proc() const {
     if (locEng->mute_session_state != LOC_MUTE_SESS_IN_SESSION) {
         bool reported = false;
         if (locEng->location_cb != NULL) {
+            adapter->clearGnssSvUsedListData();
             if (LOC_SESS_FAILURE == mStatus) {
                 // in case we want to handle the failure case
                 locEng->location_cb(NULL, NULL);
@@ -832,10 +834,17 @@ void LocEngReportPosition::proc() const {
         if (locEng->generateNmea &&
             locEng->adapter->isInSession())
         {
+            std::vector<std::string> nmeaArraystr;
             unsigned char generate_nmea = reported &&
                                           (mStatus != LOC_SESS_FAILURE);
-            loc_eng_nmea_generate_pos(locEng, mLocation, mLocationExtended,
-                                      generate_nmea);
+            loc_nmea_generate_pos(mLocation, mLocationExtended, generate_nmea, nmeaArraystr);
+            struct timeval tv;
+            gettimeofday(&tv,  NULL);
+            int64_t now = tv.tv_sec * 1000LL + tv.tv_usec / 1000;
+            for(int i = 0; i < nmeaArraystr.size(); i++) {
+                if (locEng->nmea_cb != NULL)
+                   locEng->nmea_cb(now, nmeaArraystr[i].c_str(), nmeaArraystr[i].length());
+            }
         }
 
         // Free the allocated memory for rawData
@@ -922,13 +931,22 @@ void LocEngReportSv::proc() const {
         }
 
         if (locEng->gnss_sv_status_cb != NULL) {
-            LOC_LOGE("Calling gnss_sv_status_cb");
             locEng->gnss_sv_status_cb((LocGnssSvStatus*)&(gnssSvStatus));
         }
 
         if (locEng->generateNmea)
         {
-            loc_eng_nmea_generate_sv(locEng, gnssSvStatus, mLocationExtended);
+            std::vector<std::string> nmeaArraystr;
+            loc_nmea_generate_sv(gnssSvStatus, mLocationExtended, nmeaArraystr);
+            struct timeval tv;
+            gettimeofday(&tv,  NULL);
+            int64_t now = tv.tv_sec * 1000LL + tv.tv_usec / 1000;
+            for(int i = 0; i < nmeaArraystr.size(); i++) {
+                if (locEng->nmea_cb != NULL)
+                   locEng->nmea_cb(now, nmeaArraystr[i].c_str(), nmeaArraystr[i].length());
+
+            }
+
         }
     }
 }
@@ -979,8 +997,14 @@ void LocEngReportNmea::proc() const {
     gettimeofday(&tv, (struct timezone *) NULL);
     int64_t now = tv.tv_sec * 1000LL + tv.tv_usec / 1000;
 
-    if (locEng->nmea_cb != NULL)
-        locEng->nmea_cb(now, mNmea, mLen);
+    // extract bug report info - this returns true if consumed by systemstatus
+    bool ret = LocDualContext::getSystemStatus()->setNmeaString(mNmea, mLen);
+    if (ret != true) {
+        // forward NMEA message to upper layer
+        if (locEng->nmea_cb != NULL) {
+            locEng->nmea_cb(now, mNmea, mLen);
+        }
+    }
 }
 inline void LocEngReportNmea::locallog() const {
     LOC_LOGV("LocEngReportNmea");
@@ -1829,11 +1853,12 @@ int loc_eng_init(loc_eng_data_s_type &loc_eng_data, LocCallbacks* callbacks,
 
     if ((event & LOC_API_ADAPTER_BIT_NMEA_1HZ_REPORT) && (gps_conf.NMEA_PROVIDER == NMEA_PROVIDER_AP))
     {
-        event = event ^ LOC_API_ADAPTER_BIT_NMEA_1HZ_REPORT; // unregister for modem NMEA report
+        // generate NMEA at AP
         loc_eng_data.generateNmea = true;
     }
     else if (gps_conf.NMEA_PROVIDER == NMEA_PROVIDER_MP)
     {
+        // generate NMEA at MP
         loc_eng_data.generateNmea = false;
     }
 
@@ -1866,10 +1891,9 @@ static int loc_eng_reinit(loc_eng_data_s_type &loc_eng_data)
     adapter->sendMsg(new LocEngLPPeProtocol(adapter, gps_conf.LPPE_CP_TECHNOLOGY,
                                             gps_conf.LPPE_UP_TECHNOLOGY));
 
-    if (!loc_eng_data.generateNmea)
-    {
-        NmeaSentenceTypesMask typesMask = LOC_NMEA_ALL_SUPPORTED_MASK;
-        LOC_LOGD("loc_eng_init setting nmea types, mask = %u\n",typesMask);
+    if ( adapter->getEvtMask() & LOC_API_ADAPTER_BIT_NMEA_1HZ_REPORT) {
+        NmeaSentenceTypesMask typesMask = loc_eng_data.generateNmea ?
+                LOC_NMEA_MASK_DEBUG_V02 : LOC_NMEA_ALL_SUPPORTED_MASK;
         adapter->sendMsg(new LocEngSetNmeaTypes(adapter,typesMask));
     }
 

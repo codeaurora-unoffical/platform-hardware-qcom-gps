@@ -76,6 +76,13 @@ extern "C" {
 #define ULP_LOCATION_IS_FROM_PIP      0x0040
 /** Position is from external DR solution*/
 #define ULP_LOCATION_IS_FROM_EXT_DR   0X0080
+/** Raw GNSS position fixes */
+#define ULP_LOCATION_IS_FROM_GNSS_RAW   0X0100
+
+/** SVinfo source is GNSS/DR */
+#define ULP_SVINFO_IS_FROM_GNSS         0x0001
+/** Raw SVinfo from GNSS */
+#define ULP_SVINFO_IS_FROM_GNSS_RAW     0x0002
 
 #define ULP_MIN_INTERVAL_INVALID 0xffffffff
 #define ULP_MAX_NMEA_STRING_SIZE 201
@@ -388,12 +395,15 @@ typedef uint32_t NmeaSentenceTypesMask;
 #define LOC_NMEA_MASK_GAGGA_V02 ((NmeaSentenceTypesMask)0x00004000) /**<  Enable GAGGA type  */
 #define LOC_NMEA_MASK_PQGSA_V02 ((NmeaSentenceTypesMask)0x00008000) /**<  Enable PQGSA type  */
 #define LOC_NMEA_MASK_PQGSV_V02 ((NmeaSentenceTypesMask)0x00010000) /**<  Enable PQGSV type  */
+#define LOC_NMEA_MASK_DEBUG_V02 ((NmeaSentenceTypesMask)0x00020000) /**<  Enable DEBUG type  */
+
 #define LOC_NMEA_ALL_SUPPORTED_MASK  (LOC_NMEA_MASK_GGA_V02 | LOC_NMEA_MASK_RMC_V02 | \
               LOC_NMEA_MASK_GSV_V02 | LOC_NMEA_MASK_GSA_V02 | LOC_NMEA_MASK_VTG_V02 | \
         LOC_NMEA_MASK_PQXFI_V02 | LOC_NMEA_MASK_PSTIS_V02 | LOC_NMEA_MASK_GLGSV_V02 | \
         LOC_NMEA_MASK_GNGSA_V02 | LOC_NMEA_MASK_GNGNS_V02 | LOC_NMEA_MASK_GARMC_V02 | \
         LOC_NMEA_MASK_GAGSV_V02 | LOC_NMEA_MASK_GAGSA_V02 | LOC_NMEA_MASK_GAVTG_V02 | \
-        LOC_NMEA_MASK_GAGGA_V02 | LOC_NMEA_MASK_PQGSA_V02 | LOC_NMEA_MASK_PQGSV_V02 )
+        LOC_NMEA_MASK_GAGGA_V02 | LOC_NMEA_MASK_PQGSA_V02 | LOC_NMEA_MASK_PQGSV_V02 | \
+        LOC_NMEA_MASK_DEBUG_V02 )
 
 
 
@@ -466,6 +476,7 @@ enum loc_api_adapter_event_index {
     LOC_API_ADAPTER_GNSS_MEASUREMENT,                  // GNSS Measurement report
     LOC_API_ADAPTER_REQUEST_TIMEZONE,                  // Timezone injection request
     LOC_API_ADAPTER_REPORT_GENFENCE_DWELL_REPORT,      // Geofence dwell report
+    LOC_API_ADAPTER_REQUEST_SRN_DATA,                  // request srn data from AP
     LOC_API_ADAPTER_EVENT_MAX
 };
 
@@ -498,6 +509,8 @@ enum loc_api_adapter_event_index {
 #define LOC_API_ADAPTER_BIT_GNSS_MEASUREMENT                 (1<<LOC_API_ADAPTER_GNSS_MEASUREMENT)
 #define LOC_API_ADAPTER_BIT_REQUEST_TIMEZONE                 (1<<LOC_API_ADAPTER_REQUEST_TIMEZONE)
 #define LOC_API_ADAPTER_BIT_REPORT_GENFENCE_DWELL            (1<<LOC_API_ADAPTER_REPORT_GENFENCE_DWELL_REPORT)
+#define LOC_API_ADAPTER_BIT_REQUEST_SRN_DATA                 (1<<LOC_API_ADAPTER_REQUEST_SRN_DATA)
+
 
 typedef unsigned int LOC_API_ADAPTER_EVENT_MASK_T;
 
@@ -1109,6 +1122,34 @@ typedef struct
     /* Coefficients of velocity poly */
     uint32_t    enhancedIOD;    /*  Enhanced Reference Time */
 } GnssSvPolynomial;
+
+/* Various Short Range Node Technology type*/
+typedef enum {
+    SRN_AP_DATA_TECH_TYPE_NONE,
+    SRN_AP_DATA_TECH_TYPE_BT,
+    SRN_AP_DATA_TECH_TYPE_BTLE,
+    SRN_AP_DATA_TECH_TYPE_NFC,
+    SRN_AP_DATA_TECH_TYPE_MOBILE_CODE,
+    SRN_AP_DATA_TECH_TYPE_OTHER
+} Gnss_SrnTech;
+
+/* Mac Address type requested by modem */
+typedef enum {
+    SRN_AP_DATA_PUBLIC_MAC_ADDR_TYPE_INVALID, /* No valid mac address type send */
+    SRN_AP_DATA_PUBLIC_MAC_ADDR_TYPE_PUBLIC, /* SRN AP MAC Address type PUBLIC  */
+    SRN_AP_DATA_PUBLIC_MAC_ADDR_TYPE_PRIVATE, /* SRN AP MAC Address type PRIVATE  */
+    SRN_AP_DATA_PUBLIC_MAC_ADDR_TYPE_OTHER, /* SRN AP MAC Address type OTHER  */
+}Gnss_Srn_MacAddr_Type;
+
+typedef struct
+{
+    size_t                 size;
+    Gnss_SrnTech           srnTechType; /* SRN Technology type in request */
+    bool                   srnRequest; /* scan - start(true) or stop(false) */
+    bool                   e911Mode; /* If in E911 emergency */
+    Gnss_Srn_MacAddr_Type  macAddrType; /* SRN AP MAC Address type */
+} GnssSrnDataReq;
+
 
 #ifdef __cplusplus
 }
