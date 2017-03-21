@@ -47,9 +47,19 @@ public:
     // first client to create this LockSharedLock
     inline LocSharedLock() : mRef(1) { pthread_mutex_init(&mMutex, NULL); }
     // following client(s) are to *share()* this lock created by the first client
-    inline LocSharedLock* share() { android_atomic_inc(&mRef); return this; }
+    inline LocSharedLock* share() {
+#ifdef __ANDROID__
+    android_atomic_inc(&mRef);
+#endif
+    return this;
+    }
     // whe a client no longer needs this shared lock, drop() shall be called.
-    inline void drop() { if (1 == android_atomic_dec(&mRef)) delete this; }
+    inline void drop() {
+#ifdef __ANDROID__
+    if (1 == android_atomic_dec(&mRef))
+#endif
+    delete this;
+    }
     // locking the lock to enter critical section
     inline void lock() { pthread_mutex_lock(&mMutex); }
     // unlocking the lock to leave the critical section
