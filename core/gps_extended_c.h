@@ -344,6 +344,12 @@ typedef struct {
      * were used for computing the most recent position fix.
      */
     uint64_t    bds_used_in_fix_mask;
+    /**
+     * Represents a bit mask indicating which QZSS SVs
+     * were used for computing the most recent position fix.
+     */
+    uint32_t    qzss_used_in_fix_mask;
+
 
 } GnssSvStatus;
 
@@ -818,6 +824,7 @@ typedef struct
            \item For GPS:      1 to 32
            \item For GLONASS:  1 to 32
            \item For SBAS:     120 to 151
+           \item For QZSS:     193 to 197
            \item For BDS:      201 to 237
          \end{itemize1} \end{itemize1}
         The GPS and GLONASS SVs can be disambiguated using the system field.
