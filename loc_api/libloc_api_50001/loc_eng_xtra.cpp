@@ -100,6 +100,18 @@ struct LocEngSetXtraVersionCheck : public LocMsg {
     }
 };
 
+
+/*===========================================================================
+Initialization checking macros
+===========================================================================*/
+#define INIT_CHECK(ctx, ret) \
+    if(!(ctx)) { \
+        /* Not initialized, abort */ \
+        LOC_LOGE("%s: loc_eng_xtra state error: instance not initialized", \
+                __func__); \
+        EXIT_LOG(%d, -1); \
+        ret; \
+    }
 /*===========================================================================
 FUNCTION    loc_eng_xtra_init
 
@@ -111,6 +123,7 @@ DEPENDENCIES
 
 RETURN VALUE
    0: success
+  -1: failure
 
 SIDE EFFECTS
    N/A
@@ -119,6 +132,7 @@ SIDE EFFECTS
 int loc_eng_xtra_init (loc_eng_data_s_type &loc_eng_data,
                        GpsXtraExtCallbacks* callbacks)
 {
+    INIT_CHECK(loc_eng_data.adapter, return -1);
     int ret_val = -1;
     loc_eng_xtra_data_s_type *xtra_module_data_ptr;
     ENTRY_LOG();
@@ -153,7 +167,8 @@ DEPENDENCIES
    N/A
 
 RETURN VALUE
-   0
+   0: success
+  -1: failure
 
 SIDE EFFECTS
    N/A
@@ -162,6 +177,7 @@ SIDE EFFECTS
 int loc_eng_xtra_inject_data(loc_eng_data_s_type &loc_eng_data,
                              char* data, int length)
 {
+    INIT_CHECK(loc_eng_data.adapter, return -1);
     ENTRY_LOG();
     LocEngAdapter* adapter = loc_eng_data.adapter;
     adapter->sendMsg(new LocEngInjectXtraData(adapter, data, length));
@@ -178,7 +194,8 @@ DEPENDENCIES
    N/A
 
 RETURN VALUE
-   0
+   0: success
+  -1: failure
 
 SIDE EFFECTS
    N/A
@@ -186,6 +203,7 @@ SIDE EFFECTS
 ===========================================================================*/
 int loc_eng_xtra_request_server(loc_eng_data_s_type &loc_eng_data)
 {
+    INIT_CHECK(loc_eng_data.adapter, return -1);
     ENTRY_LOG();
     LocEngAdapter* adapter = loc_eng_data.adapter;
     adapter->sendMsg(new LocEngRequestXtraServer(adapter));
@@ -212,6 +230,7 @@ SIDE EFFECTS
 void loc_eng_xtra_version_check(loc_eng_data_s_type &loc_eng_data,
                                 int check)
 {
+    INIT_CHECK(loc_eng_data.adapter, return);
     ENTRY_LOG();
     LocEngAdapter *adapter = loc_eng_data.adapter;
     adapter->sendMsg(new LocEngSetXtraVersionCheck(adapter, check));
