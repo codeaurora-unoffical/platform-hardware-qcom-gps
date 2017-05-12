@@ -27,7 +27,7 @@
  *
  */
 
-#define LOG_NDDEBUG 0
+#define LOG_NDEBUG 0
 #define LOG_TAG "LocSvc_eng"
 
 #include <stdint.h>
@@ -986,9 +986,9 @@ inline void LocEngReportStatus::log() const {
 //        case LOC_ENG_MSG_REPORT_NMEA:
 LocEngReportNmea::LocEngReportNmea(void* locEng,
                                    const char* data, int len) :
-    LocMsg(), mLocEng(locEng), mNmea(new char[len]), mLen(len)
+    LocMsg(), mLocEng(locEng), mNmea(new char[len+1]), mLen(len)
 {
-    memcpy((void*)mNmea, (void*)data, len);
+    strlcpy(mNmea, data, len+1);
     locallog();
 }
 void LocEngReportNmea::proc() const {
@@ -2296,6 +2296,7 @@ static int loc_eng_get_zpp_handler(loc_eng_data_s_type &loc_eng_data)
    UlpLocation location;
    LocPosTechMask tech_mask = LOC_POS_TECH_MASK_DEFAULT;
    GpsLocationExtended locationExtended;
+   memset(&location, 0, sizeof(location));
    memset(&locationExtended, 0, sizeof (GpsLocationExtended));
    locationExtended.size = sizeof(locationExtended);
 
