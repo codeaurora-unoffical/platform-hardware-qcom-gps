@@ -333,6 +333,16 @@ typedef struct {
     uint64_t bds_sv_used_ids_mask;
 } GnssSvUsedInPosition;
 
+/* V2V parameters */
+typedef struct {
+   float           v_LongAccelAccuracy; /* 0.1 meters/second2 : Rate of Speed change*/
+   float           v_LatAccelAccuracy;  /* 0.1 meters/second2 */
+   float           v_VertAccelAccuracy; /* 1 meters/second2 */
+   float           v_YawRateAccuracy;   /* 0.5 degrees/second */
+   float           v_PitchInDeg;        /* Degrees */
+   unsigned short  v_IsV2vValid;        /* ACCEL_LONG | ACCEL_LAT| ACCEL_VERT| YAW_RATE| PITCH */
+} GnssQdrNavV2VData;
+
 /** Represents gps location extended. */
 typedef struct {
     /** set to sizeof(GpsLocationExtended) */
@@ -375,6 +385,8 @@ typedef struct {
     LocPosTechMask tech_mask;
     /** SV Info source used in computing this fix */
     LocSvInfoSource sv_source;
+    /** V2V 4wayAcceleration set with validity */
+    GnssQdrNavV2VData v2v4ParamSet;
 } GpsLocationExtended;
 
 enum loc_sess_status {
