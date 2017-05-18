@@ -34,6 +34,19 @@
 #include <math.h>
 #include "log_util.h"
 
+/*=============================================================================
+ *
+ *                             FUNCTION DECLARATIONS
+ *
+ *============================================================================*/
+static int loc_eng_nmea_generate_pos_GSA(loc_eng_data_s_type *loc_eng_data_p,
+                                         const GpsLocationExtended &locationExtended,
+                                         GnssConstellationType constellationType);
+static int loc_eng_nmea_generate_sv_GSV(loc_eng_data_s_type *loc_eng_data_p,
+                                        const GnssSvStatus &svStatus,
+                                        GnssConstellationType constellationType,
+                                        int constellationSvCount);
+
 /*===========================================================================
 FUNCTION    loc_eng_nmea_send
 
@@ -140,175 +153,45 @@ void loc_eng_nmea_generate_pos(loc_eng_data_s_type *loc_eng_data_p,
     int utcMSeconds = (location.gpsLocation.timestamp)%1000;
 
     if (generate_nmea) {
+        int gpsSvCount = 0;
+        int gloSvCount = 0;
+        int qzssSvCount = 0;
         // ------------------
         // ------$GPGSA------
         // ------------------
-
-        uint32_t svUsedCount = 0;
-        uint32_t svUsedList[32] = {0};
-        uint32_t mask = loc_eng_data_p->gps_used_mask;
-        for (uint8_t i = 1; mask > 0 && svUsedCount < 32; i++)
+        gpsSvCount = loc_eng_nmea_generate_pos_GSA(loc_eng_data_p, locationExtended,
+                                                   GNSS_CONSTELLATION_GPS);
+        if (gpsSvCount == -1)
         {
-            if (mask & 1)
-                svUsedList[svUsedCount++] = i;
-            mask = mask >> 1;
-        }
-        // clear the cache so they can't be used again
-        loc_eng_data_p->gps_used_mask = 0;
-
-        char fixType;
-        if (svUsedCount == 0)
-            fixType = '1'; // no fix
-        else if (svUsedCount <= 3)
-            fixType = '2'; // 2D fix
-        else
-            fixType = '3'; // 3D fix
-
-        length = snprintf(pMarker, lengthRemaining, "$GPGSA,A,%c,", fixType);
-
-        if (length < 0 || length >= lengthRemaining)
-        {
-            LOC_LOGE("NMEA Error in string formatting");
+            LOC_LOGE("NMEA Error in string formatting for GPGSA");
             return;
         }
-        pMarker += length;
-        lengthRemaining -= length;
-
-        for (uint8_t i = 0; i < 12; i++) // only the first 12 sv go in sentence
-        {
-            if (i < svUsedCount)
-                length = snprintf(pMarker, lengthRemaining, "%02d,", svUsedList[i]);
-            else
-                length = snprintf(pMarker, lengthRemaining, ",");
-
-            if (length < 0 || length >= lengthRemaining)
-            {
-                LOC_LOGE("NMEA Error in string formatting");
-                return;
-            }
-            pMarker += length;
-            lengthRemaining -= length;
-        }
-
-        if (locationExtended.flags & GPS_LOCATION_EXTENDED_HAS_DOP)
-        {   // dop is in locationExtended, (QMI)
-            length = snprintf(pMarker, lengthRemaining, "%.1f,%.1f,%.1f",
-                              locationExtended.pdop,
-                              locationExtended.hdop,
-                              locationExtended.vdop);
-        }
-        else if (loc_eng_data_p->pdop > 0 && loc_eng_data_p->hdop > 0 && loc_eng_data_p->vdop > 0)
-        {   // dop was cached from sv report (RPC)
-            length = snprintf(pMarker, lengthRemaining, "%.1f,%.1f,%.1f",
-                              loc_eng_data_p->pdop,
-                              loc_eng_data_p->hdop,
-                              loc_eng_data_p->vdop);
-        }
-        else
-        {   // no dop
-            length = snprintf(pMarker, lengthRemaining, ",,");
-        }
-
-        length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
-        loc_eng_nmea_send(sentence, length, loc_eng_data_p);
 
         // ------------------
         // ------$GNGSA------
         // ------------------
-        uint32_t gloUsedCount = 0;
-        uint32_t gloUsedList[32] = {0};
-
-        // Reset locals for GNGSA sentence generation
-        pMarker = sentence;
-        lengthRemaining = sizeof(sentence);
-        mask = loc_eng_data_p->glo_used_mask;
-        fixType = '\0';
-
-        // Parse the glonass sv mask, and fetch glo sv ids
-        // Mask corresponds to the offset.
-        // GLONASS SV ids are from 65-96
-        const int GLONASS_SV_ID_OFFSET = 64;
-        for (uint8_t i = 1; mask > 0 && gloUsedCount < 32; i++)
+        gloSvCount = loc_eng_nmea_generate_pos_GSA(loc_eng_data_p, locationExtended,
+                                                   GNSS_CONSTELLATION_GLONASS);
+        if (gloSvCount == -1)
         {
-            if (mask & 1)
-                gloUsedList[gloUsedCount++] = i + GLONASS_SV_ID_OFFSET;
-            mask = mask >> 1;
-        }
-        // clear the cache so they can't be used again
-        loc_eng_data_p->glo_used_mask = 0;
-
-        if (gloUsedCount == 0)
-            fixType = '1'; // no fix
-        else if (gloUsedCount <= 3)
-            fixType = '2'; // 2D fix
-        else
-            fixType = '3'; // 3D fix
-
-        // Start printing the sentence
-        // Format: $--GSA,a,x,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,p.p,h.h,v.v*cc
-        // GNGSA : for glonass SVs
-        // a : Mode  : A : Automatic, allowed to automatically switch 2D/3D
-        // x : Fixtype : 1 (no fix), 2 (2D fix), 3 (3D fix)
-        // xx : 12 SV ID
-        // p.p : Position DOP (Dilution of Precision)
-        // h.h : Horizontal DOP
-        // v.v : Vertical DOP
-        // cc : Checksum value
-        length = snprintf(pMarker, lengthRemaining, "$GNGSA,A,%c,", fixType);
-
-        if (length < 0 || length >= lengthRemaining)
-        {
-            LOC_LOGE("NMEA Error in string formatting");
+            LOC_LOGE("NMEA Error in string formatting for GNGSA");
             return;
         }
-        pMarker += length;
-        lengthRemaining -= length;
 
-        // Add first 12 GLONASS satellite IDs
-        for (uint8_t i = 0; i < 12; i++)
+        // ------------------
+        // ------$PQGSA------
+        // ------------------
+        qzssSvCount = loc_eng_nmea_generate_pos_GSA(loc_eng_data_p, locationExtended,
+                                                    GNSS_CONSTELLATION_QZSS);
+        if (qzssSvCount == -1)
         {
-            if (i < gloUsedCount)
-                length = snprintf(pMarker, lengthRemaining, "%02d,", gloUsedList[i]);
-            else
-                length = snprintf(pMarker, lengthRemaining, ",");
-
-            if (length < 0 || length >= lengthRemaining)
-            {
-                LOC_LOGE("NMEA Error in string formatting");
-                return;
-            }
-            pMarker += length;
-            lengthRemaining -= length;
+            LOC_LOGE("NMEA Error in string formatting for PQGSA");
+            return;
         }
-
-        // Add the position/horizontal/vertical DOP values
-        if (locationExtended.flags & GPS_LOCATION_EXTENDED_HAS_DOP)
-        {   // dop is in locationExtended, (QMI)
-            length = snprintf(pMarker, lengthRemaining, "%.1f,%.1f,%.1f",
-                              locationExtended.pdop,
-                              locationExtended.hdop,
-                              locationExtended.vdop);
-        }
-        else if (loc_eng_data_p->pdop > 0 && loc_eng_data_p->hdop > 0 && loc_eng_data_p->vdop > 0)
-        {   // dop was cached from sv report (RPC)
-            length = snprintf(pMarker, lengthRemaining, "%.1f,%.1f,%.1f",
-                              loc_eng_data_p->pdop,
-                              loc_eng_data_p->hdop,
-                              loc_eng_data_p->vdop);
-        }
-        else
-        {   // no dop
-            length = snprintf(pMarker, lengthRemaining, ",,");
-        }
-
-        /* Sentence is ready, add checksum and broadcast */
-        length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
-        loc_eng_nmea_send(sentence, length, loc_eng_data_p);
 
         // ------------------
         // ------$GPVTG------
         // ------------------
-
         pMarker = sentence;
         lengthRemaining = sizeof(sentence);
 
@@ -600,17 +483,17 @@ void loc_eng_nmea_generate_pos(loc_eng_data_s_type *loc_eng_data_p,
         if (locationExtended.flags & GPS_LOCATION_EXTENDED_HAS_DOP)
         {   // dop is in locationExtended, (QMI)
             length = snprintf(pMarker, lengthRemaining, "%c,%02d,%.1f,",
-                              gpsQuality, svUsedCount, locationExtended.hdop);
+                              gpsQuality, gpsSvCount, locationExtended.hdop);
         }
         else if (loc_eng_data_p->pdop > 0 && loc_eng_data_p->hdop > 0 && loc_eng_data_p->vdop > 0)
         {   // dop was cached from sv report (RPC)
             length = snprintf(pMarker, lengthRemaining, "%c,%02d,%.1f,",
-                              gpsQuality, svUsedCount, loc_eng_data_p->hdop);
+                              gpsQuality, gpsSvCount, loc_eng_data_p->hdop);
         }
         else
         {   // no hdop
             length = snprintf(pMarker, lengthRemaining, "%c,%02d,,",
-                              gpsQuality, svUsedCount);
+                              gpsQuality, gpsSvCount);
         }
 
         if (length < 0 || length >= lengthRemaining)
@@ -685,6 +568,158 @@ void loc_eng_nmea_generate_pos(loc_eng_data_s_type *loc_eng_data_p,
 }
 
 
+/*===========================================================================
+FUNCTION    loc_eng_nmea_generate_pos_GSA
+
+DESCRIPTION
+   Generate GSA NMEA sentences for various constellations.
+
+DEPENDENCIES
+   NONE
+
+RETURN VALUE
+   SV used count for this constellation type. -1 for error.
+
+SIDE EFFECTS
+   N/A
+
+===========================================================================*/
+static int loc_eng_nmea_generate_pos_GSA(loc_eng_data_s_type *loc_eng_data_p,
+                                         const GpsLocationExtended &locationExtended,
+                                         GnssConstellationType constellationType)
+{
+    char sentence[NMEA_SENTENCE_MAX_LENGTH] = {0};
+    char* pMarker = sentence;
+    int lengthRemaining = sizeof(sentence);
+    int length = 0;
+    uint32_t svUsedCount = 0;
+    uint32_t svUsedList[32] = {0};
+    uint32_t mask = 0;
+    int svIdOffset = 0;
+    int systemId=0;
+    char *nmeaSentenceFormat = NULL;
+
+    if (GNSS_CONSTELLATION_GPS == constellationType)
+    {
+        mask = loc_eng_data_p->gps_used_mask;
+        // clear the cache so they can't be used again
+        loc_eng_data_p->gps_used_mask = 0;
+        // GPS SV ids are from 1-32
+        svIdOffset = 0;
+        // system id is 1 for GPS
+        systemId = 1;
+        nmeaSentenceFormat = (char *)"$GPGSA,A,%c,";
+    }
+    else if (GNSS_CONSTELLATION_GLONASS == constellationType)
+    {
+        mask = loc_eng_data_p->glo_used_mask;
+        loc_eng_data_p->glo_used_mask = 0;
+        // GLONASS SV ids are from 65-96
+        svIdOffset = 64;
+        // system id is 2 for GLO
+        systemId = 2;
+        nmeaSentenceFormat = (char *)"$GNGSA,A,%c,";
+    }
+    else if (GNSS_CONSTELLATION_QZSS == constellationType)
+    {
+        mask = loc_eng_data_p->qzss_used_mask;
+        loc_eng_data_p->qzss_used_mask = 0;
+        // QZSS SV ids are from 193-197. So keep offset 0
+        svIdOffset = 0;
+        // system id is 5 for QZSS
+        systemId = 5;
+        nmeaSentenceFormat = (char *)"$PQGSA,A,%c,";
+    }
+    else
+    {
+        LOC_LOGE("Unrecognized constellation %d",constellationType);
+        return -1;
+    }
+
+    // Parse the sv mask, and fetch sv ids
+    // Mask corresponds to the offset.
+    for (uint8_t i = 1; mask > 0 && svUsedCount < 32; i++)
+    {
+        if (mask & 1)
+            svUsedList[svUsedCount++] = i + svIdOffset;
+        mask = mask >> 1;
+    }
+
+    char fixType;
+    if (svUsedCount == 0)
+        fixType = '1'; // no fix
+    else if (svUsedCount <= 3)
+        fixType = '2'; // 2D fix
+    else
+        fixType = '3'; // 3D fix
+
+    // Start printing the sentence
+    // Format: $--GSA,a,x,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,p.p,h.h,v.v*cc
+    // GPGSA: for GPS SVs, GNGSA : for glonass SVs, PQGSA: for QZSS SVs
+    // a : Mode  : A : Automatic, allowed to automatically switch 2D/3D
+    // x : Fixtype : 1 (no fix), 2 (2D fix), 3 (3D fix)
+    // xx : 12 SV ID
+    // p.p : Position DOP (Dilution of Precision)
+    // h.h : Horizontal DOP
+    // v.v : Vertical DOP
+    length = snprintf(pMarker, lengthRemaining, nmeaSentenceFormat, fixType);
+
+    if (length < 0 || length >= lengthRemaining)
+    {
+        LOC_LOGE("NMEA Error in string formatting");
+        return -1;
+    }
+    pMarker += length;
+    lengthRemaining -= length;
+
+    // Add first 12 GPS/GLONASS/QZSS satellite IDs
+    for (uint8_t i = 0; i < 12; i++) // only the first 12 sv go in sentence
+    {
+        if (i < svUsedCount)
+            length = snprintf(pMarker, lengthRemaining, "%02d,", svUsedList[i]);
+        else
+            length = snprintf(pMarker, lengthRemaining, ",");
+
+        if (length < 0 || length >= lengthRemaining)
+        {
+            LOC_LOGE("NMEA Error in string formatting");
+            return -1;
+        }
+        pMarker += length;
+        lengthRemaining -= length;
+    }
+
+    // Add the position/horizontal/vertical DOP values
+    if (locationExtended.flags & GPS_LOCATION_EXTENDED_HAS_DOP)
+    {   // dop is in locationExtended, (QMI)
+        length = snprintf(pMarker, lengthRemaining, "%.1f,%.1f,%.1f,",
+                          locationExtended.pdop,
+                          locationExtended.hdop,
+                          locationExtended.vdop);
+    }
+    else if (loc_eng_data_p->pdop > 0 && loc_eng_data_p->hdop > 0 && loc_eng_data_p->vdop > 0)
+    {   // dop was cached from sv report (RPC)
+        length = snprintf(pMarker, lengthRemaining, "%.1f,%.1f,%.1f,",
+                          loc_eng_data_p->pdop,
+                          loc_eng_data_p->hdop,
+                          loc_eng_data_p->vdop);
+    }
+    else
+    {   // no dop
+        length = snprintf(pMarker, lengthRemaining, ",,,");
+    }
+    pMarker += length;
+    lengthRemaining -= length;
+
+    // system id
+    length = snprintf(pMarker, lengthRemaining, "%d", systemId);
+
+    /* Sentence is ready, add checksum and broadcast */
+    length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
+    loc_eng_nmea_send(sentence, length, loc_eng_data_p);
+
+    return svUsedCount;
+}
 
 /*===========================================================================
 FUNCTION    loc_eng_nmea_generate_sv
@@ -707,20 +742,16 @@ void loc_eng_nmea_generate_sv(loc_eng_data_s_type *loc_eng_data_p,
 {
     ENTRY_LOG();
 
-    char sentence[NMEA_SENTENCE_MAX_LENGTH] = {0};
-    char* pMarker = sentence;
-    int lengthRemaining = sizeof(sentence);
-    int length = 0;
     int svCount = svStatus.num_svs;
-    int sentenceCount = 0;
-    int sentenceNumber = 1;
     int svNumber = 1;
     int gpsCount = 0;
     int glnCount = 0;
+    int qzssCount = 0;
 
-    //Count GPS SVs for saparating GPS from GLONASS and throw others
+    //Count GPS, GLONASS, QZSS SVs and throw others
     loc_eng_data_p->gps_used_mask = 0;
     loc_eng_data_p->glo_used_mask = 0;
+    loc_eng_data_p->qzss_used_mask = 0;
     for(svNumber=1; svNumber <= svCount; svNumber++) {
         if (GNSS_CONSTELLATION_GPS == svStatus.gnss_sv_list[svNumber - 1].constellation)
         {
@@ -742,165 +773,52 @@ void loc_eng_nmea_generate_sv(loc_eng_data_s_type *loc_eng_data_p,
             }
             glnCount++;
         }
+        else if (GNSS_CONSTELLATION_QZSS == svStatus.gnss_sv_list[svNumber - 1].constellation)
+        {
+            // cache the used in fix mask, as it will be needed to send $GNGSA
+            // during the position report
+            if (GNSS_SV_FLAGS_USED_IN_FIX == (svStatus.gnss_sv_list[svNumber - 1].flags & GNSS_SV_FLAGS_USED_IN_FIX))
+            {
+                loc_eng_data_p->qzss_used_mask |= (1 << (svStatus.gnss_sv_list[svNumber - 1].svid - 1));
+            }
+            qzssCount++;
+        }
     }
+
+    int returnVal = 0;
 
     // ------------------
     // ------$GPGSV------
     // ------------------
-
-    if (gpsCount <= 0)
+    returnVal = loc_eng_nmea_generate_sv_GSV(loc_eng_data_p, svStatus,
+                                             GNSS_CONSTELLATION_GPS, gpsCount);
+    if (returnVal == -1)
     {
-        // no svs in view, so just send a blank $GPGSV sentence
-        strlcpy(sentence, "$GPGSV,1,1,0,", sizeof(sentence));
-        length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
-        loc_eng_nmea_send(sentence, length, loc_eng_data_p);
+        LOC_LOGE("NMEA Error in string formatting for GPGSV");
+        return;
     }
-    else
-    {
-        svNumber = 1;
-        sentenceNumber = 1;
-        sentenceCount = gpsCount/4 + (gpsCount % 4 != 0);
-
-        while (sentenceNumber <= sentenceCount)
-        {
-            pMarker = sentence;
-            lengthRemaining = sizeof(sentence);
-
-            length = snprintf(pMarker, lengthRemaining, "$GPGSV,%d,%d,%02d",
-                          sentenceCount, sentenceNumber, gpsCount);
-
-            if (length < 0 || length >= lengthRemaining)
-            {
-                LOC_LOGE("NMEA Error in string formatting");
-                return;
-            }
-            pMarker += length;
-            lengthRemaining -= length;
-
-            for (int i=0; (svNumber <= svCount) && (i < 4);  svNumber++)
-            {
-                if (GNSS_CONSTELLATION_GPS == svStatus.gnss_sv_list[svNumber - 1].constellation)
-                {
-                    length = snprintf(pMarker, lengthRemaining,",%02d,%02d,%03d,",
-                                      svStatus.gnss_sv_list[svNumber-1].svid,
-                                      (int)(0.5 + svStatus.gnss_sv_list[svNumber-1].elevation), //float to int
-                                      (int)(0.5 + svStatus.gnss_sv_list[svNumber-1].azimuth)); //float to int
-
-                    if (length < 0 || length >= lengthRemaining)
-                    {
-                        LOC_LOGE("NMEA Error in string formatting");
-                        return;
-                    }
-                    pMarker += length;
-                    lengthRemaining -= length;
-
-                    if (svStatus.gnss_sv_list[svNumber-1].c_n0_dbhz > 0)
-                    {
-                        length = snprintf(pMarker, lengthRemaining,"%02d",
-                                         (int)(0.5 + svStatus.gnss_sv_list[svNumber-1].c_n0_dbhz)); //float to int
-
-
-                        if (length < 0 || length >= lengthRemaining)
-                        {
-                            LOC_LOGE("NMEA Error in string formatting");
-                            return;
-                        }
-                        pMarker += length;
-                        lengthRemaining -= length;
-                    }
-
-                    i++;
-               }
-
-            }
-
-            length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
-            loc_eng_nmea_send(sentence, length, loc_eng_data_p);
-            sentenceNumber++;
-
-        }  //while
-
-    } //if
 
     // ------------------
     // ------$GLGSV------
     // ------------------
-
-    if (glnCount <= 0)
+    returnVal = loc_eng_nmea_generate_sv_GSV(loc_eng_data_p, svStatus,
+                                             GNSS_CONSTELLATION_GLONASS, glnCount);
+    if (returnVal == -1)
     {
-        // no svs in view, so just send a blank $GLGSV sentence
-        strlcpy(sentence, "$GLGSV,1,1,0,", sizeof(sentence));
-        length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
-        loc_eng_nmea_send(sentence, length, loc_eng_data_p);
+        LOC_LOGE("NMEA Error in string formatting for GLGSV");
+        return;
     }
-    else
+
+    // ------------------
+    // ------$PQGSV------
+    // ------------------
+    returnVal = loc_eng_nmea_generate_sv_GSV(loc_eng_data_p, svStatus,
+                                             GNSS_CONSTELLATION_QZSS, qzssCount);
+    if (returnVal == -1)
     {
-        svNumber = 1;
-        sentenceNumber = 1;
-        sentenceCount = glnCount/4 + (glnCount % 4 != 0);
-
-        while (sentenceNumber <= sentenceCount)
-        {
-            pMarker = sentence;
-            lengthRemaining = sizeof(sentence);
-
-            length = snprintf(pMarker, lengthRemaining, "$GLGSV,%d,%d,%02d",
-                          sentenceCount, sentenceNumber, glnCount);
-
-            if (length < 0 || length >= lengthRemaining)
-            {
-                LOC_LOGE("NMEA Error in string formatting");
-                return;
-            }
-            pMarker += length;
-            lengthRemaining -= length;
-
-            for (int i=0; (svNumber <= svCount) && (i < 4);  svNumber++)
-            {
-                if (GNSS_CONSTELLATION_GLONASS == svStatus.gnss_sv_list[svNumber - 1].constellation)
-                {
-
-                    length = snprintf(pMarker, lengthRemaining,",%02d,%02d,%03d,",
-                        svStatus.gnss_sv_list[svNumber - 1].svid,
-                        (int)(0.5 + svStatus.gnss_sv_list[svNumber - 1].elevation), //float to int
-                        (int)(0.5 + svStatus.gnss_sv_list[svNumber - 1].azimuth)); //float to int
-
-                    if (length < 0 || length >= lengthRemaining)
-                    {
-                        LOC_LOGE("NMEA Error in string formatting");
-                        return;
-                    }
-                    pMarker += length;
-                    lengthRemaining -= length;
-
-                    if (svStatus.gnss_sv_list[svNumber - 1].c_n0_dbhz > 0)
-                    {
-                        length = snprintf(pMarker, lengthRemaining,"%02d",
-                            (int)(0.5 + svStatus.gnss_sv_list[svNumber - 1].c_n0_dbhz)); //float to int
-
-
-                        if (length < 0 || length >= lengthRemaining)
-                        {
-                            LOC_LOGE("NMEA Error in string formatting");
-                            return;
-                        }
-                        pMarker += length;
-                        lengthRemaining -= length;
-                    }
-
-                    i++;
-               }
-
-            }
-
-            length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
-            loc_eng_nmea_send(sentence, length, loc_eng_data_p);
-            sentenceNumber++;
-
-        }  //while
-
-    }//if
-
+        LOC_LOGE("NMEA Error in string formatting for PQGSV");
+        return;
+    }
 
     // For RPC, the DOP are sent during sv report, so cache them
     // now to be sent during position report.
@@ -920,3 +838,149 @@ void loc_eng_nmea_generate_sv(loc_eng_data_s_type *loc_eng_data_p,
 
     EXIT_LOG(%d, 0);
 }
+
+/*===========================================================================
+FUNCTION    loc_eng_nmea_generate_sv_GSV
+
+DESCRIPTION
+   Generate GSV NMEA sentences for various constellations.
+
+DEPENDENCIES
+   NONE
+
+RETURN VALUE
+   0 if success, -1 for failure.
+
+SIDE EFFECTS
+   N/A
+
+===========================================================================*/
+static int loc_eng_nmea_generate_sv_GSV(loc_eng_data_s_type *loc_eng_data_p,
+                                        const GnssSvStatus &svStatus,
+                                        GnssConstellationType constellationType,
+                                        int constellationSvCount)
+{
+    char sentence[NMEA_SENTENCE_MAX_LENGTH] = {0};
+    char* pMarker = sentence;
+    int svCount = svStatus.num_svs;
+    int lengthRemaining = sizeof(sentence);
+    int length = 0;
+    int sentenceCount = 0;
+    int sentenceNumber = 1;
+    int svNumber = 1;
+
+    if (constellationSvCount <= 0)
+    {
+        char *blankNmeaSentence = NULL;
+        // no svs in view, so just send a blank $GPGSV sentence
+        if (GNSS_CONSTELLATION_GPS == constellationType)
+        {
+            blankNmeaSentence = (char *)"$GPGSV,1,1,0,";
+        }
+        else if (GNSS_CONSTELLATION_GLONASS == constellationType)
+        {
+            blankNmeaSentence = (char *)"$GLGSV,1,1,0,";
+        }
+        else if (GNSS_CONSTELLATION_QZSS == constellationType)
+        {
+            blankNmeaSentence = (char *)"$PQGSV,1,1,0,";
+        }
+        strlcpy(sentence, blankNmeaSentence, sizeof(sentence));
+        length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
+        loc_eng_nmea_send(sentence, length, loc_eng_data_p);
+    }
+    else
+    {
+        char *nmeaSentenceFormat = NULL;
+        int systemId=0;
+        svNumber = 1;
+        sentenceNumber = 1;
+        sentenceCount = constellationSvCount/4 + (constellationSvCount % 4 != 0);
+
+        if (GNSS_CONSTELLATION_GPS == constellationType)
+        {
+            nmeaSentenceFormat = (char *)"$GPGSV,%d,%d,%02d";
+        }
+        else if (GNSS_CONSTELLATION_GLONASS == constellationType)
+        {
+            nmeaSentenceFormat = (char *)"$GLGSV,%d,%d,%02d";
+        }
+        else if (GNSS_CONSTELLATION_QZSS == constellationType)
+        {
+            nmeaSentenceFormat = (char *)"$PQGSV,%d,%d,%02d";
+            // we need to add extended information for QZSS and BDS
+            systemId = 5;
+        }
+
+        while (sentenceNumber <= sentenceCount)
+        {
+            pMarker = sentence;
+            lengthRemaining = sizeof(sentence);
+
+            length = snprintf(pMarker, lengthRemaining, nmeaSentenceFormat,
+                          sentenceCount, sentenceNumber, constellationSvCount);
+
+            if (length < 0 || length >= lengthRemaining)
+            {
+                LOC_LOGE("NMEA Error in string formatting");
+                return -1;
+            }
+            pMarker += length;
+            lengthRemaining -= length;
+
+            for (int i=0; (svNumber <= svCount) && (i < 4);  svNumber++)
+            {
+                if (constellationType == svStatus.gnss_sv_list[svNumber - 1].constellation)
+                {
+                    length = snprintf(pMarker, lengthRemaining,",%02d,%02d,%03d,",
+                                      svStatus.gnss_sv_list[svNumber-1].svid,
+                                      (int)(0.5 + svStatus.gnss_sv_list[svNumber-1].elevation), //float to int
+                                      (int)(0.5 + svStatus.gnss_sv_list[svNumber-1].azimuth)); //float to int
+
+                    if (length < 0 || length >= lengthRemaining)
+                    {
+                        LOC_LOGE("NMEA Error in string formatting");
+                        return -1;
+                    }
+                    pMarker += length;
+                    lengthRemaining -= length;
+
+                    if (svStatus.gnss_sv_list[svNumber-1].c_n0_dbhz > 0)
+                    {
+                        length = snprintf(pMarker, lengthRemaining,"%02d",
+                                         (int)(0.5 + svStatus.gnss_sv_list[svNumber-1].c_n0_dbhz)); //float to int
+
+
+                        if (length < 0 || length >= lengthRemaining)
+                        {
+                            LOC_LOGE("NMEA Error in string formatting");
+                            return -1;
+                        }
+                        pMarker += length;
+                        lengthRemaining -= length;
+                    }
+
+                    i++;
+               }
+
+            }
+
+            // The following entries are specific to QZSS and BDS
+            if (systemId != 0)
+            {
+                // last one is System id and second last is Signal Id which is always zero
+                length = snprintf(pMarker, lengthRemaining,",%d,%d",0,systemId);
+                pMarker += length;
+                lengthRemaining -= length;
+            }
+
+            length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
+            loc_eng_nmea_send(sentence, length, loc_eng_data_p);
+            sentenceNumber++;
+
+        }  //while
+
+    } //if
+    return 0;
+}
+
