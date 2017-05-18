@@ -60,10 +60,12 @@ typedef struct loc_sv_cache_info_s
     uint32_t glo_used_mask;
     uint32_t gal_used_mask;
     uint32_t qzss_used_mask;
+    uint32_t bds_used_mask;
     uint32_t gps_count;
     uint32_t glo_count;
     uint32_t gal_count;
     uint32_t qzss_count;
+    uint32_t bds_count;
     float hdop;
     float pdop;
     float vdop;
@@ -127,6 +129,14 @@ static loc_nmea_sv_meta* loc_nmea_sv_meta_init(loc_nmea_sv_meta& sv_meta,
             // QZSS SV ids are from 193-197. So keep svIdOffset 0
             sv_meta.systemId = SYSTEM_ID_QZSS;
             break;
+        case LOC_GNSS_CONSTELLATION_BEIDOU:
+            sv_meta.talker[0] = 'P';
+            sv_meta.talker[1] = 'Q';
+            sv_meta.mask = sv_cache_info.bds_used_mask;
+            sv_meta.svCount = sv_cache_info.bds_count;
+            // BDS SV ids are from 201-235. So keep svIdOffset 0
+            sv_meta.systemId = SYSTEM_ID_BEIDOU;
+            break;
         default:
             LOC_LOGE("NMEA Error unknow constellation type: %d", svType);
             return NULL;
@@ -135,9 +145,10 @@ static loc_nmea_sv_meta* loc_nmea_sv_meta_init(loc_nmea_sv_meta& sv_meta,
                 (sv_cache_info.gps_used_mask ? 1 : 0) +
                 (sv_cache_info.glo_used_mask ? 1 : 0) +
                 (sv_cache_info.gal_used_mask ? 1 : 0) +
-                (sv_cache_info.qzss_used_mask ? 1 : 0) > 1)
+                (sv_cache_info.qzss_used_mask ? 1 : 0) +
+                (sv_cache_info.bds_used_mask ? 1 : 0) > 1)
     {
-        // If GPS, GLONASS, Galileo, QZSS etc. are combined
+        // If GPS, GLONASS, Galileo, QZSS, BDS etc. are combined
         // to obtain the reported position solution,
         // talker shall be set to GN, to indicate that
         // the satellites are used in a combined solution
@@ -428,7 +439,8 @@ static void loc_nmea_generate_GSV(const LocGnssSvStatus &svStatus,
         }
 
         // The following entries are specific to QZSS and BDS
-        if (sv_meta_p->svType == LOC_GNSS_CONSTELLATION_QZSS)
+        if ((sv_meta_p->svType == LOC_GNSS_CONSTELLATION_QZSS) ||
+            (sv_meta_p->svType == LOC_GNSS_CONSTELLATION_BEIDOU))
         {
             // last one is System id and second last is Signal Id which is always zero
             length = snprintf(pMarker, lengthRemaining,",%d,%d",0,sv_meta_p->systemId);
@@ -536,12 +548,23 @@ void loc_nmea_generate_pos(const UlpLocation &location,
             talker[1] = sv_meta.talker[1];
         }
 
-        // -------------------
-        // ---$PQGSA/$GNGSA---
-        // -------------------
+        // --------------------------
+        // ---$PQGSA/$GNGSA (QZSS)---
+        // --------------------------
 
         count = loc_nmea_generate_GSA(locationExtended, sentence, sizeof(sentence),
                 loc_nmea_sv_meta_init(sv_meta, LOC_GNSS_CONSTELLATION_QZSS, false), nmeaArraystr);
+        if (count > 0)
+        {
+            svUsedCount += count;
+            // talker should be default "GP". If GPS, GLO etc is used, it should be "GN"
+        }
+
+        // ----------------------------
+        // ---$PQGSA/$GNGSA (BEIDOU)---
+        // ----------------------------
+        count = loc_nmea_generate_GSA(locationExtended, sentence, sizeof(sentence),
+                loc_nmea_sv_meta_init(sv_meta, LOC_GNSS_CONSTELLATION_BEIDOU, false), nmeaArraystr);
         if (count > 0)
         {
             svUsedCount += count;
@@ -916,6 +939,7 @@ void loc_nmea_generate_pos(const UlpLocation &location,
         sv_cache_info.glo_used_mask = 0;
         sv_cache_info.gal_used_mask = 0;
         sv_cache_info.qzss_used_mask = 0;
+        sv_cache_info.bds_used_mask = 0;
     }
     //Send blank NMEA reports for non-final fixes
     else {
@@ -990,11 +1014,13 @@ void loc_nmea_generate_sv(const LocGnssSvStatus &svStatus,
     sv_cache_info.glo_used_mask = 0;
     sv_cache_info.gal_used_mask = 0;
     sv_cache_info.qzss_used_mask = 0;
+    sv_cache_info.bds_used_mask = 0;
 
     sv_cache_info.gps_count = 0;
     sv_cache_info.glo_count = 0;
     sv_cache_info.gal_count = 0;
     sv_cache_info.qzss_count = 0;
+    sv_cache_info.bds_count = 0;
     for(svNumber=1; svNumber <= svCount; svNumber++) {
         if (LOC_GNSS_CONSTELLATION_GPS == svStatus.gnss_sv_list[svNumber - 1].constellation)
         {
@@ -1032,11 +1058,20 @@ void loc_nmea_generate_sv(const LocGnssSvStatus &svStatus,
             // during the position report
             if (LOC_GNSS_SV_FLAGS_USED_IN_FIX == (svStatus.gnss_sv_list[svNumber - 1].flags & LOC_GNSS_SV_FLAGS_USED_IN_FIX))
             {
-                sv_cache_info.qzss_used_mask|= (1 << (svStatus.gnss_sv_list[svNumber - 1].svid - 1));
+                sv_cache_info.qzss_used_mask |= (1 << (svStatus.gnss_sv_list[svNumber - 1].svid - 1));
             }
             sv_cache_info.qzss_count++;
         }
-
+        else if (LOC_GNSS_CONSTELLATION_BEIDOU == svStatus.gnss_sv_list[svNumber - 1].constellation)
+        {
+            // cache the used in fix mask, as it will be needed to send $PQGSA
+            // during the position report
+            if (LOC_GNSS_SV_FLAGS_USED_IN_FIX == (svStatus.gnss_sv_list[svNumber - 1].flags & LOC_GNSS_SV_FLAGS_USED_IN_FIX))
+            {
+                sv_cache_info.bds_used_mask |= (1 << (svStatus.gnss_sv_list[svNumber - 1].svid - 1));
+            }
+            sv_cache_info.bds_count++;
+        }
     }
 
     loc_nmea_sv_meta sv_meta;
@@ -1061,12 +1096,19 @@ void loc_nmea_generate_sv(const LocGnssSvStatus &svStatus,
     loc_nmea_generate_GSV(svStatus, sentence, sizeof(sentence),
             loc_nmea_sv_meta_init(sv_meta, LOC_GNSS_CONSTELLATION_GALILEO, false), nmeaArraystr);
 
-    // ------------------
-    // ------$PQGSV------
-    // ------------------
+    // -------------------------
+    // ------$PQGSV (QZSS)------
+    // -------------------------
 
     loc_nmea_generate_GSV(svStatus, sentence, sizeof(sentence),
             loc_nmea_sv_meta_init(sv_meta, LOC_GNSS_CONSTELLATION_QZSS, false), nmeaArraystr);
+
+    // ---------------------------
+    // ------$PQGSV (BEIDOU)------
+    // ---------------------------
+
+    loc_nmea_generate_GSV(svStatus, sentence, sizeof(sentence),
+            loc_nmea_sv_meta_init(sv_meta, LOC_GNSS_CONSTELLATION_BEIDOU, false), nmeaArraystr);
 
 
     // For RPC, the DOP are sent during sv report, so cache them
