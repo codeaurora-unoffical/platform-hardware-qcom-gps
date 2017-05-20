@@ -156,6 +156,7 @@ void loc_eng_nmea_generate_pos(loc_eng_data_s_type *loc_eng_data_p,
         int gpsSvCount = 0;
         int gloSvCount = 0;
         int qzssSvCount = 0;
+        int bdsSvCount = 0;
         // ------------------
         // ------$GPGSA------
         // ------------------
@@ -178,14 +179,25 @@ void loc_eng_nmea_generate_pos(loc_eng_data_s_type *loc_eng_data_p,
             return;
         }
 
-        // ------------------
-        // ------$PQGSA------
-        // ------------------
+        // ------------------------
+        // ------$PQGSA (QZSS)-----
+        // ------------------------
         qzssSvCount = loc_eng_nmea_generate_pos_GSA(loc_eng_data_p, locationExtended,
                                                     GNSS_CONSTELLATION_QZSS);
         if (qzssSvCount == -1)
         {
-            LOC_LOGE("NMEA Error in string formatting for PQGSA");
+            LOC_LOGE("NMEA Error in string formatting for PQGSA for QZSS");
+            return;
+        }
+
+        // ------------------------
+        // ------$PQGSA (BDS)------
+        // ------------------------
+        bdsSvCount = loc_eng_nmea_generate_pos_GSA(loc_eng_data_p, locationExtended,
+                                                   GNSS_CONSTELLATION_BEIDOU);
+        if (bdsSvCount == -1)
+        {
+            LOC_LOGE("NMEA Error in string formatting for PQGSA for BDS");
             return;
         }
 
@@ -630,6 +642,16 @@ static int loc_eng_nmea_generate_pos_GSA(loc_eng_data_s_type *loc_eng_data_p,
         systemId = 5;
         nmeaSentenceFormat = (char *)"$PQGSA,A,%c,";
     }
+    else if (GNSS_CONSTELLATION_BEIDOU== constellationType)
+    {
+        mask = loc_eng_data_p->bds_used_mask;
+        loc_eng_data_p->bds_used_mask = 0;
+        // BDS SV ids are from 201-235. So keep offset as 0
+        svIdOffset = 0;
+        // system id is 4 for BDS
+        systemId = 4;
+        nmeaSentenceFormat = (char *)"$PQGSA,A,%c,";
+    }
     else
     {
         LOC_LOGE("Unrecognized constellation %d",constellationType);
@@ -747,10 +769,12 @@ void loc_eng_nmea_generate_sv(loc_eng_data_s_type *loc_eng_data_p,
     int gpsCount = 0;
     int glnCount = 0;
     int qzssCount = 0;
+    int bdsCount = 0;
 
     //Count GPS, GLONASS, QZSS SVs and throw others
     loc_eng_data_p->gps_used_mask = 0;
     loc_eng_data_p->glo_used_mask = 0;
+    loc_eng_data_p->bds_used_mask = 0;
     loc_eng_data_p->qzss_used_mask = 0;
     for(svNumber=1; svNumber <= svCount; svNumber++) {
         if (GNSS_CONSTELLATION_GPS == svStatus.gnss_sv_list[svNumber - 1].constellation)
@@ -783,6 +807,16 @@ void loc_eng_nmea_generate_sv(loc_eng_data_s_type *loc_eng_data_p,
             }
             qzssCount++;
         }
+        else if (GNSS_CONSTELLATION_BEIDOU== svStatus.gnss_sv_list[svNumber - 1].constellation)
+        {
+            // cache the used in fix mask, as it will be needed to send $GNGSA
+            // during the position report
+            if (GNSS_SV_FLAGS_USED_IN_FIX == (svStatus.gnss_sv_list[svNumber - 1].flags & GNSS_SV_FLAGS_USED_IN_FIX))
+            {
+                loc_eng_data_p->bds_used_mask |= (1 << (svStatus.gnss_sv_list[svNumber - 1].svid - 1));
+            }
+            bdsCount++;
+        }
     }
 
     int returnVal = 0;
@@ -809,14 +843,25 @@ void loc_eng_nmea_generate_sv(loc_eng_data_s_type *loc_eng_data_p,
         return;
     }
 
-    // ------------------
-    // ------$PQGSV------
-    // ------------------
+    // -------------------------
+    // ------$PQGSV (QZSS)------
+    // -------------------------
     returnVal = loc_eng_nmea_generate_sv_GSV(loc_eng_data_p, svStatus,
                                              GNSS_CONSTELLATION_QZSS, qzssCount);
     if (returnVal == -1)
     {
-        LOC_LOGE("NMEA Error in string formatting for PQGSV");
+        LOC_LOGE("NMEA Error in string formatting for PQGSV for QZSS");
+        return;
+    }
+
+    // ------------------------
+    // ------$PQGSV (BDS)------
+    // ------------------------
+    returnVal = loc_eng_nmea_generate_sv_GSV(loc_eng_data_p, svStatus,
+                                             GNSS_CONSTELLATION_BEIDOU, bdsCount);
+    if (returnVal == -1)
+    {
+        LOC_LOGE("NMEA Error in string formatting for PQGSV for BDS");
         return;
     }
 
@@ -881,7 +926,8 @@ static int loc_eng_nmea_generate_sv_GSV(loc_eng_data_s_type *loc_eng_data_p,
         {
             blankNmeaSentence = (char *)"$GLGSV,1,1,0,";
         }
-        else if (GNSS_CONSTELLATION_QZSS == constellationType)
+        else if ((GNSS_CONSTELLATION_QZSS == constellationType) ||
+                   (GNSS_CONSTELLATION_BEIDOU== constellationType))
         {
             blankNmeaSentence = (char *)"$PQGSV,1,1,0,";
         }
@@ -910,6 +956,12 @@ static int loc_eng_nmea_generate_sv_GSV(loc_eng_data_s_type *loc_eng_data_p,
             nmeaSentenceFormat = (char *)"$PQGSV,%d,%d,%02d";
             // we need to add extended information for QZSS and BDS
             systemId = 5;
+        }
+        else if (GNSS_CONSTELLATION_BEIDOU== constellationType)
+        {
+            nmeaSentenceFormat = (char *)"$PQGSV,%d,%d,%02d";
+            // we need to add extended information for QZSS and BDS
+            systemId = 4;
         }
 
         while (sentenceNumber <= sentenceCount)
