@@ -198,7 +198,7 @@ typedef enum loc_position_mode_type {
 #define MIN_POSSIBLE_FIX_INTERVAL 1000 /* msec */
 
 /** Flags to indicate which values are valid in a GpsLocationExtended. */
-typedef uint16_t GpsLocationExtendedFlags;
+typedef uint32_t GpsLocationExtendedFlags;
 /** GpsLocationExtended has valid pdop, hdop, vdop. */
 #define GPS_LOCATION_EXTENDED_HAS_DOP 0x0001
 /** GpsLocationExtended has valid altitude mean sea level. */
@@ -225,6 +225,14 @@ typedef uint16_t GpsLocationExtendedFlags;
 #define GPS_LOCATION_EXTENDED_HAS_HOR_ELIP_UNC_AZIMUTH 0x0800
 /** GpsLocationExtended has valid gnss sv used in position data */
 #define GPS_LOCATION_EXTENDED_HAS_GNSS_SV_USED_DATA 0x1000
+/** GpsLocationExtended has valid Sensor Sub Technology Mask */
+#define GPS_LOCATION_EXTENDED_HAS_SENSOR_SUB_TECH_MASK 0x2000
+/** GpsLocationExtended has valid velocity */
+#define GPS_LOCATION_EXTENDED_HAS_VELOCITY 0x4000
+/** GpsLocationExtended has valid Velsigma */
+#define GPS_LOCATION_EXTENDED_HAS_VELOCITY_UNC 0x8000
+/** GpsLocationExtended has valid horizontal uncertainty circular*/
+#define GPS_LOCATION_EXTENDED_HAS_HOR_UNC_CIRCULAR 0x10000
 
 /** GPS PRN Range */
 #define GPS_SV_PRN_MIN      1
@@ -259,7 +267,7 @@ typedef struct {
     /** set to sizeof(GpsLocationExtended) */
     size_t          size;
     /** Contains GpsLocationExtendedFlags bits. */
-    uint16_t        flags;
+    uint32_t        flags;
     /** Contains the Altitude wrt mean sea level */
     float           altitudeMeanSeaLevel;
     /** Contains Position Dilusion of Precision. */
@@ -284,10 +292,20 @@ typedef struct {
     float           horUncEllipseSemiMajor;
     /*  Horizontal Elliptical Uncertainty (Semi-Minor Axis) */
     float           horUncEllipseSemiMinor;
-    /*    Elliptical Horizontal Uncertainty Azimuth */
+    /*  Elliptical Horizontal Uncertainty Azimuth */
     float           horUncEllipseOrientAzimuth;
     /** Gnss sv used in position data */
     GnssSvUsedInPosition gnss_sv_used_ids;
+    /*  gnss_only_position */
+    bool            gnss_only_position;
+    /*  sensor sub technoloigy mask for PedMode/Pedomoter/PedAlign */
+    uint8_t         sensor_sub_tech_mask;
+    /*  velocity in m/s */
+    float           velocity[3];
+    /*  velocity uncertainty in m/s */
+    float           velocity_unc[3];
+    /*  horizontal uncertainty circular in m */
+    float           hor_unc_circular;
 } GpsLocationExtended;
 
 enum loc_sess_status {

@@ -68,6 +68,11 @@ public:
         (void)loc_technology_mask;
         return false;
     }
+    inline virtual bool reportSv(GnssSvStatus &svStatus) {
+        (void)svStatus;
+        return false;
+    }
+
 };
 
 } // namespace loc_core

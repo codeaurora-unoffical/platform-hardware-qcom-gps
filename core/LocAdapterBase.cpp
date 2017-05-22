@@ -82,8 +82,14 @@ void LocAdapterBase::
 void LocAdapterBase::
     reportSv(GnssSvStatus &svStatus,
              GpsLocationExtended &locationExtended,
-             void* svExt)
-DEFAULT_IMPL()
+             void* svExt) {
+    (void)locationExtended;
+    (void)svExt;
+    if (mLocAdapterProxyBase == NULL ||
+        !mLocAdapterProxyBase->reportSv(svStatus)) {
+        DEFAULT_IMPL()
+    }
+}
 
 
 void LocAdapterBase::
