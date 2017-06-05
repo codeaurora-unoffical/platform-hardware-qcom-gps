@@ -924,10 +924,6 @@ void LocEngReportSv::proc() const {
             {
                 gnssSvStatus.gnss_sv_list[i].flags |= LOC_GNSS_SV_FLAGS_USED_IN_FIX;
             }
-            else
-            {
-                gnssSvStatus.gnss_sv_list[i].flags &= ~LOC_GNSS_SV_FLAGS_USED_IN_FIX;
-            }
         }
     }
 
@@ -985,9 +981,9 @@ inline void LocEngReportStatus::log() const {
 //        case LOC_ENG_MSG_REPORT_NMEA:
 LocEngReportNmea::LocEngReportNmea(void* locEng,
                                    const char* data, int len) :
-    LocMsg(), mLocEng(locEng), mNmea(new char[len]), mLen(len)
+    LocMsg(), mLocEng(locEng), mNmea(new char[len+1]), mLen(len)
 {
-    memcpy((void*)mNmea, (void*)data, len);
+    strlcpy(mNmea, data, len+1);
     locallog();
 }
 void LocEngReportNmea::proc() const {
