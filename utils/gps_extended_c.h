@@ -80,10 +80,11 @@ extern "C" {
 /** Raw GNSS position fixes */
 #define ULP_LOCATION_IS_FROM_GNSS_RAW   0X0100
 
+typedef uint32_t LocSvInfoSource;
 /** SVinfo source is GNSS/DR */
-#define ULP_SVINFO_IS_FROM_GNSS         0x0001
+#define ULP_SVINFO_IS_FROM_GNSS       ((LocSvInfoSource)0x0001)
 /** Raw SVinfo from GNSS */
-#define ULP_SVINFO_IS_FROM_GNSS_RAW     0x0002
+#define ULP_SVINFO_IS_FROM_DR         ((LocSvInfoSource)0x0002)
 
 #define ULP_MIN_INTERVAL_INVALID 0xffffffff
 #define ULP_MAX_NMEA_STRING_SIZE 201
@@ -287,6 +288,8 @@ typedef uint16_t GpsLocationExtendedFlags;
 #define GPS_LOCATION_EXTENDED_HAS_GNSS_SV_USED_DATA 0x1000
 /** GpsLocationExtended has valid navSolutionMask */
 #define GPS_LOCATION_EXTENDED_HAS_NAV_SOLUTION_MASK 0x2000
+/** GpsLocationExtended has valid LocPosTechMask */
+#define GPS_LOCATION_EXTENDED_HAS_POS_TECH_MASK   0x4000
 
 typedef uint32_t LocNavSolutionMask;
 /* Bitmask to specify whether SBAS ionospheric correction is used  */
@@ -303,6 +306,8 @@ typedef uint32_t LocNavSolutionMask;
 #define GPS_SV_PRN_MAX      32
 #define GLO_SV_PRN_MIN      65
 #define GLO_SV_PRN_MAX      96
+#define QZSS_SV_PRN_MIN     193
+#define QZSS_SV_PRN_MAX     197
 #define BDS_SV_PRN_MIN      201
 #define BDS_SV_PRN_MAX      235
 #define GAL_SV_PRN_MIN      301
@@ -339,6 +344,7 @@ typedef struct {
     uint64_t glo_sv_used_ids_mask;
     uint64_t gal_sv_used_ids_mask;
     uint64_t bds_sv_used_ids_mask;
+    uint64_t qzss_sv_used_ids_mask;
 } GnssSvUsedInPosition;
 
 /** Represents gps location extended. */
