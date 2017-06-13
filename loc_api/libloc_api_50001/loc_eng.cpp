@@ -923,10 +923,6 @@ void LocEngReportSv::proc() const {
             {
                 gnssSvStatus.gnss_sv_list[i].flags |= LOC_GNSS_SV_FLAGS_USED_IN_FIX;
             }
-            else
-            {
-                gnssSvStatus.gnss_sv_list[i].flags &= ~LOC_GNSS_SV_FLAGS_USED_IN_FIX;
-            }
         }
     }
 
