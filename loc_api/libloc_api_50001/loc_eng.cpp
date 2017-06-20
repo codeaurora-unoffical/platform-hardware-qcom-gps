@@ -913,6 +913,9 @@ void LocEngReportSv::proc() const {
             case LOC_GNSS_CONSTELLATION_GALILEO:
                 svUsedIdMask = gnssSvIdUsedInPosition.gal_sv_used_ids_mask;
                 break;
+            case LOC_GNSS_CONSTELLATION_QZSS:
+                svUsedIdMask = gnssSvIdUsedInPosition.qzss_sv_used_ids_mask;
+                break;
             default:
                 svUsedIdMask = 0;
                 break;
@@ -923,10 +926,6 @@ void LocEngReportSv::proc() const {
             if (svUsedIdMask & (1 << (gnssSvId - 1)))
             {
                 gnssSvStatus.gnss_sv_list[i].flags |= LOC_GNSS_SV_FLAGS_USED_IN_FIX;
-            }
-            else
-            {
-                gnssSvStatus.gnss_sv_list[i].flags &= ~LOC_GNSS_SV_FLAGS_USED_IN_FIX;
             }
         }
     }
