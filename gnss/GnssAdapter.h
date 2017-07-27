@@ -92,6 +92,7 @@ class GnssAdapter : public LocAdapterBase {
     /* ==== CONTROL ======================================================================== */
     LocationControlCallbacks mControlCallbacks;
     uint32_t mPowerVoteId;
+    uint32_t mNmeaMask;
 
     /* ==== NI ============================================================================= */
     NiData mNiData;
@@ -99,6 +100,7 @@ class GnssAdapter : public LocAdapterBase {
     /* ==== AGPS ========================================================*/
     // This must be initialized via initAgps()
     AgpsManager mAgpsManager;
+    AgpsCbInfo mAgpsCbInfo;
 
     /*==== CONVERSION ===================================================================*/
     static void convertOptions(LocPosMode& out, const LocationOptions& options);
@@ -163,6 +165,8 @@ public:
     LocationError startTracking(const LocationOptions& options);
     LocationError stopTrackingMultiplex(LocationAPI* client, uint32_t id);
     LocationError stopTracking();
+    LocationError updateTrackingMultiplex(LocationAPI* client, uint32_t id,
+                                          const LocationOptions& options);
 
     /* ==== NI ============================================================================= */
     /* ======== COMMANDS ====(Called from Client Thread)==================================== */
@@ -183,7 +187,7 @@ public:
     uint32_t* gnssUpdateConfigCommand(GnssConfig config);
     uint32_t gnssDeleteAidingDataCommand(GnssAidingData& data);
 
-    void initAgpsCommand(void* statusV4Cb);
+    void initAgpsCommand(const AgpsCbInfo& cbInfo);
     void dataConnOpenCommand(
             AGpsExtType agpsType,
             const char* apnName, int apnLen, LocApnIpType ipType);

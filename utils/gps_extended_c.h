@@ -114,7 +114,8 @@ enum loc_registration_mask_status {
 
 typedef enum {
     LOC_SUPPORTED_FEATURE_ODCPI_2_V02 = 0, /**<  Support ODCPI version 2 feature  */
-    LOC_SUPPORTED_FEATURE_WIFI_AP_DATA_INJECT_2_V02 /**<  Support Wifi AP data inject version 2 feature  */
+    LOC_SUPPORTED_FEATURE_WIFI_AP_DATA_INJECT_2_V02, /**<  Support Wifi AP data inject version 2 feature  */
+    LOC_SUPPORTED_FEATURE_DEBUG_NMEA_V02 /**< Support debug NMEA feature */
 } loc_supported_feature_enum;
 
 typedef struct {
@@ -159,6 +160,17 @@ typedef int16_t AGpsBearerType;
 #define AGPS_APN_BEARER_IPV4        0
 #define AGPS_APN_BEARER_IPV6        1
 #define AGPS_APN_BEARER_IPV4V6      2
+
+typedef enum {
+    AGPS_CB_PRIORITY_LOW  = 1,
+    AGPS_CB_PRIORITY_MED  = 2,
+    AGPS_CB_PRIORITY_HIGH = 3
+} AgpsCbPriority;
+
+typedef struct {
+    void* statusV4Cb;
+    AgpsCbPriority cbPriority;
+} AgpsCbInfo;
 
 /** GPS extended callback structure. */
 typedef struct {
@@ -259,7 +271,7 @@ typedef enum loc_position_mode_type {
 #define GPS_DEFAULT_FIX_INTERVAL_MS      1000
 
 /** Flags to indicate which values are valid in a GpsLocationExtended. */
-typedef uint16_t GpsLocationExtendedFlags;
+typedef uint32_t GpsLocationExtendedFlags;
 /** GpsLocationExtended has valid pdop, hdop, vdop. */
 #define GPS_LOCATION_EXTENDED_HAS_DOP 0x0001
 /** GpsLocationExtended has valid altitude mean sea level. */
@@ -290,6 +302,12 @@ typedef uint16_t GpsLocationExtendedFlags;
 #define GPS_LOCATION_EXTENDED_HAS_NAV_SOLUTION_MASK 0x2000
 /** GpsLocationExtended has valid LocPosTechMask */
 #define GPS_LOCATION_EXTENDED_HAS_POS_TECH_MASK   0x4000
+/** GpsLocationExtended has valid LocSvInfoSource */
+#define GPS_LOCATION_EXTENDED_HAS_SV_SOURCE_INFO   0x8000
+/** GpsLocationExtended has valid position dynamics data */
+#define GPS_LOCATION_EXTENDED_HAS_POS_DYNAMICS_DATA   0x10000
+/** GpsLocationExtended has GPS Time */
+#define GPS_LOCATION_EXTENDED_HAS_GPS_TIME   0x20000
 
 typedef uint32_t LocNavSolutionMask;
 /* Bitmask to specify whether SBAS ionospheric correction is used  */
@@ -300,6 +318,18 @@ typedef uint32_t LocNavSolutionMask;
 #define LOC_NAV_MASK_SBAS_CORRECTION_LONG ((LocNavSolutionMask)0x0004)
 /**<  Bitmask to specify whether SBAS integrity information is used  */
 #define LOC_NAV_MASK_SBAS_INTEGRITY ((LocNavSolutionMask)0x0008)
+
+typedef uint32_t LocPosDataMask;
+/* Bitmask to specify whether Navigation data has Forward Acceleration  */
+#define LOC_NAV_DATA_HAS_LONG_ACCEL ((LocPosDataMask)0x0001)
+/* Bitmask to specify whether Navigation data has Sideward Acceleration */
+#define LOC_NAV_DATA_HAS_LAT_ACCEL ((LocPosDataMask)0x0002)
+/* Bitmask to specify whether Navigation data has Vertical Acceleration */
+#define LOC_NAV_DATA_HAS_VERT_ACCEL ((LocPosDataMask)0x0004)
+/* Bitmask to specify whether Navigation data has Heading Rate */
+#define LOC_NAV_DATA_HAS_YAW_RATE ((LocPosDataMask)0x0008)
+/* Bitmask to specify whether Navigation data has Body pitch */
+#define LOC_NAV_DATA_HAS_PITCH ((LocPosDataMask)0x0010)
 
 /** GPS PRN Range */
 #define GPS_SV_PRN_MIN      1
@@ -347,12 +377,40 @@ typedef struct {
     uint64_t qzss_sv_used_ids_mask;
 } GnssSvUsedInPosition;
 
+/* Body Frame parameters */
+typedef struct {
+    /** Contains Body frame LocPosDataMask bits. */
+   uint32_t        bodyFrameDatamask;
+   /* Forward Acceleration in body frame (m/s2)*/
+   float           longAccel;
+   /* Sideward Acceleration in body frame (m/s2)*/
+   float           latAccel;
+   /* Vertical Acceleration in body frame (m/s2)*/
+   float           vertAccel;
+   /* Heading Rate (Radians/second) */
+   float           yawRate;
+   /* Body pitch (Radians) */
+   float           pitch;
+}LocPositionDynamics;
+
+/* GPS Time structure */
+typedef struct {
+
+  /**<   Current GPS week as calculated from midnight, Jan. 6, 1980. \n
+       - Units: Weeks */
+  uint16_t gpsWeek;
+
+  /**<   Amount of time into the current GPS week. \n
+       - Units: Milliseconds */
+  uint32_t gpsTimeOfWeekMs;
+}GPSTimeStruct;
+
 /** Represents gps location extended. */
 typedef struct {
     /** set to sizeof(GpsLocationExtended) */
     size_t          size;
     /** Contains GpsLocationExtendedFlags bits. */
-    uint16_t        flags;
+    uint32_t        flags;
     /** Contains the Altitude wrt mean sea level */
     float           altitudeMeanSeaLevel;
     /** Contains Position Dilusion of Precision. */
@@ -387,6 +445,12 @@ typedef struct {
     LocNavSolutionMask  navSolutionMask;
     /** Position technology used in computing this fix */
     LocPosTechMask tech_mask;
+    /** SV Info source used in computing this fix */
+    LocSvInfoSource sv_source;
+    /** Body Frame Dynamics: 4wayAcceleration and pitch set with validity */
+    LocPositionDynamics bodyFrameData;
+    /** GPS Time */
+    GPSTimeStruct gpsTime;
 } GpsLocationExtended;
 
 enum loc_sess_status {
@@ -416,13 +480,13 @@ typedef uint32_t NmeaSentenceTypesMask;
 #define LOC_NMEA_MASK_PQGSV_V02 ((NmeaSentenceTypesMask)0x00010000) /**<  Enable PQGSV type  */
 #define LOC_NMEA_MASK_DEBUG_V02 ((NmeaSentenceTypesMask)0x00020000) /**<  Enable DEBUG type  */
 
-#define LOC_NMEA_ALL_SUPPORTED_MASK  (LOC_NMEA_MASK_GGA_V02 | LOC_NMEA_MASK_RMC_V02 | \
+// all bitmasks of general supported NMEA sentenses - debug is not part of this
+#define LOC_NMEA_ALL_GENERAL_SUPPORTED_MASK  (LOC_NMEA_MASK_GGA_V02 | LOC_NMEA_MASK_RMC_V02 | \
               LOC_NMEA_MASK_GSV_V02 | LOC_NMEA_MASK_GSA_V02 | LOC_NMEA_MASK_VTG_V02 | \
         LOC_NMEA_MASK_PQXFI_V02 | LOC_NMEA_MASK_PSTIS_V02 | LOC_NMEA_MASK_GLGSV_V02 | \
         LOC_NMEA_MASK_GNGSA_V02 | LOC_NMEA_MASK_GNGNS_V02 | LOC_NMEA_MASK_GARMC_V02 | \
         LOC_NMEA_MASK_GAGSV_V02 | LOC_NMEA_MASK_GAGSA_V02 | LOC_NMEA_MASK_GAVTG_V02 | \
-        LOC_NMEA_MASK_GAGGA_V02 | LOC_NMEA_MASK_PQGSA_V02 | LOC_NMEA_MASK_PQGSV_V02 | \
-        LOC_NMEA_MASK_DEBUG_V02 )
+        LOC_NMEA_MASK_GAGGA_V02 | LOC_NMEA_MASK_PQGSA_V02 | LOC_NMEA_MASK_PQGSV_V02)
 
 typedef enum {
   LOC_ENG_IF_REQUEST_SENDER_ID_QUIPC = 0,
@@ -494,6 +558,7 @@ enum loc_api_adapter_event_index {
     LOC_API_ADAPTER_REQUEST_TIMEZONE,                  // Timezone injection request
     LOC_API_ADAPTER_REPORT_GENFENCE_DWELL_REPORT,      // Geofence dwell report
     LOC_API_ADAPTER_REQUEST_SRN_DATA,                  // request srn data from AP
+    LOC_API_ADAPTER_REQUEST_POSITION_INJECTION,        // Position injection request
     LOC_API_ADAPTER_EVENT_MAX
 };
 
@@ -527,6 +592,7 @@ enum loc_api_adapter_event_index {
 #define LOC_API_ADAPTER_BIT_REQUEST_TIMEZONE                 (1<<LOC_API_ADAPTER_REQUEST_TIMEZONE)
 #define LOC_API_ADAPTER_BIT_REPORT_GENFENCE_DWELL            (1<<LOC_API_ADAPTER_REPORT_GENFENCE_DWELL_REPORT)
 #define LOC_API_ADAPTER_BIT_REQUEST_SRN_DATA                 (1<<LOC_API_ADAPTER_REQUEST_SRN_DATA)
+#define LOC_API_ADAPTER_BIT_POSITION_INJECTION_REQUEST       (1<<LOC_API_ADAPTER_REQUEST_POSITION_INJECTION)
 
 
 typedef unsigned int LOC_API_ADAPTER_EVENT_MASK_T;
@@ -641,8 +707,10 @@ typedef enum
     /**< COMPASS satellite. */
     GNSS_LOC_SV_SYSTEM_GLONASS                = 5,
     /**< GLONASS satellite. */
-    GNSS_LOC_SV_SYSTEM_BDS                    = 6
+    GNSS_LOC_SV_SYSTEM_BDS                    = 6,
     /**< BDS satellite. */
+    GNSS_LOC_SV_SYSTEM_QZSS                   = 7
+    /**< QZSS satellite. */
 } Gnss_LocSvSystemEnumType;
 
 typedef enum

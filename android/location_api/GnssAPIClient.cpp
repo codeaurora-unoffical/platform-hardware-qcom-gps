@@ -35,6 +35,7 @@
 
 #include "LocationUtil.h"
 #include "GnssAPIClient.h"
+#include <LocDualContext.h>
 
 namespace android {
 namespace hardware {
@@ -49,6 +50,7 @@ GnssAPIClient::GnssAPIClient(const sp<IGnssCallback>& gpsCb,
     LocationAPIClientBase(),
     mGnssCbIface(nullptr),
     mGnssNiCbIface(nullptr),
+    mControlClient(new LocationAPIControlClient()),
     mLocationCapabilitiesMask(0),
     mLocationCapabilitiesCached(false)
 {
@@ -67,6 +69,10 @@ GnssAPIClient::GnssAPIClient(const sp<IGnssCallback>& gpsCb,
 GnssAPIClient::~GnssAPIClient()
 {
     LOC_LOGD("%s]: ()", __FUNCTION__);
+    if (mControlClient) {
+        delete mControlClient;
+        mControlClient = nullptr;
+    }
 }
 
 // for GpsInterface
@@ -79,6 +85,7 @@ void GnssAPIClient::gnssUpdateCallbacks(const sp<IGnssCallback>& gpsCb,
     mGnssNiCbIface = niCb;
 
     LocationCallbacks locationCallbacks;
+    memset(&locationCallbacks, 0, sizeof(LocationCallbacks));
     locationCallbacks.size = sizeof(LocationCallbacks);
 
     locationCallbacks.trackingCb = nullptr;
@@ -94,7 +101,12 @@ void GnssAPIClient::gnssUpdateCallbacks(const sp<IGnssCallback>& gpsCb,
     locationCallbacks.gnssLocationInfoCb = nullptr;
 
     locationCallbacks.gnssNiCb = nullptr;
-    if (mGnssNiCbIface != nullptr) {
+    loc_core::ContextBase* context =
+            loc_core::LocDualContext::getLocFgContext(
+                    NULL, NULL,
+                    loc_core::LocDualContext::mLocationHalName, false);
+    if (mGnssNiCbIface != nullptr && !context->hasAgpsExtendedCapabilities()) {
+        LOC_LOGD("Registering NI CB");
         locationCallbacks.gnssNiCb = [this](uint32_t id, GnssNiNotification gnssNiNotification) {
             onGnssNiCb(id, gnssNiNotification);
         };
@@ -135,48 +147,6 @@ bool GnssAPIClient::gnssStop()
     return retVal;
 }
 
-void GnssAPIClient::gnssDeleteAidingData(IGnss::GnssAidingData aidingDataFlags)
-{
-    LOC_LOGD("%s]: (%02hx)", __FUNCTION__, aidingDataFlags);
-    GnssAidingData data;
-    memset(&data, 0, sizeof (GnssAidingData));
-    data.sv.svTypeMask = GNSS_AIDING_DATA_SV_TYPE_GPS |
-        GNSS_AIDING_DATA_SV_TYPE_GLONASS |
-        GNSS_AIDING_DATA_SV_TYPE_QZSS |
-        GNSS_AIDING_DATA_SV_TYPE_BEIDOU |
-        GNSS_AIDING_DATA_SV_TYPE_GALILEO;
-
-    if (aidingDataFlags == IGnss::GnssAidingData::DELETE_ALL)
-        data.deleteAll = true;
-    else {
-        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_EPHEMERIS)
-            data.sv.svMask |= GNSS_AIDING_DATA_SV_EPHEMERIS;
-        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_ALMANAC)
-            data.sv.svMask |= GNSS_AIDING_DATA_SV_ALMANAC;
-        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_POSITION)
-            data.common.mask |= GNSS_AIDING_DATA_COMMON_POSITION;
-        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_TIME)
-            data.common.mask |= GNSS_AIDING_DATA_COMMON_TIME;
-        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_IONO)
-            data.sv.svMask |= GNSS_AIDING_DATA_SV_IONOSPHERE;
-        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_UTC)
-            data.common.mask |= GNSS_AIDING_DATA_COMMON_UTC;
-        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_HEALTH)
-            data.sv.svMask |= GNSS_AIDING_DATA_SV_HEALTH;
-        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_SVDIR)
-            data.sv.svMask |= GNSS_AIDING_DATA_SV_DIRECTION;
-        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_SVSTEER)
-            data.sv.svMask |= GNSS_AIDING_DATA_SV_STEER;
-        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_SADATA)
-            data.sv.svMask |= GNSS_AIDING_DATA_SV_SA_DATA;
-        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_RTI)
-            data.common.mask |= GNSS_AIDING_DATA_COMMON_RTI;
-        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_CELLDB_INFO)
-            data.common.mask |= GNSS_AIDING_DATA_COMMON_CELLDB;
-    }
-    locAPIGnssDeleteAidingData(data);
-}
-
 bool GnssAPIClient::gnssSetPositionMode(IGnss::GnssPositionMode mode,
         IGnss::GnssPositionRecurrence recurrence, uint32_t minIntervalMs,
         uint32_t preferredAccuracyMeters, uint32_t preferredTimeMs)
@@ -194,6 +164,11 @@ bool GnssAPIClient::gnssSetPositionMode(IGnss::GnssPositionMode mode,
         mLocationOptions.mode = GNSS_SUPL_MODE_MSB;
     else if (mode ==  IGnss::GnssPositionMode::MS_ASSISTED)
         mLocationOptions.mode = GNSS_SUPL_MODE_MSA;
+    else {
+        LOC_LOGD("%s]: invalid GnssPositionMode: %d", __FUNCTION__, mode);
+        retVal = false;
+    }
+    locAPIUpdateTrackingOptions(mLocationOptions);
     return retVal;
 }
 
@@ -209,14 +184,84 @@ void GnssAPIClient::gnssNiRespond(int32_t notifId,
         data = GNSS_NI_RESPONSE_DENY;
     else if (userResponse == IGnssNiCallback::GnssUserResponseType::RESPONSE_NORESP)
         data = GNSS_NI_RESPONSE_NO_RESPONSE;
+    else {
+        LOC_LOGD("%s]: invalid GnssUserResponseType: %d", __FUNCTION__, userResponse);
+        return;
+    }
     locAPIGnssNiResponse(notifId, data);
 }
 
-// for GnssConfigurationInterface
+// these apis using LocationAPIControlClient
+void GnssAPIClient::gnssDeleteAidingData(IGnss::GnssAidingData aidingDataFlags)
+{
+    LOC_LOGD("%s]: (%02hx)", __FUNCTION__, aidingDataFlags);
+    if (mControlClient == nullptr) {
+        return;
+    }
+    GnssAidingData data;
+    memset(&data, 0, sizeof (GnssAidingData));
+    data.sv.svTypeMask = GNSS_AIDING_DATA_SV_TYPE_GPS_BIT |
+        GNSS_AIDING_DATA_SV_TYPE_GLONASS_BIT |
+        GNSS_AIDING_DATA_SV_TYPE_QZSS_BIT |
+        GNSS_AIDING_DATA_SV_TYPE_BEIDOU_BIT |
+        GNSS_AIDING_DATA_SV_TYPE_GALILEO_BIT;
+
+    if (aidingDataFlags == IGnss::GnssAidingData::DELETE_ALL)
+        data.deleteAll = true;
+    else {
+        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_EPHEMERIS)
+            data.sv.svMask |= GNSS_AIDING_DATA_SV_EPHEMERIS_BIT;
+        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_ALMANAC)
+            data.sv.svMask |= GNSS_AIDING_DATA_SV_ALMANAC_BIT;
+        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_POSITION)
+            data.common.mask |= GNSS_AIDING_DATA_COMMON_POSITION_BIT;
+        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_TIME)
+            data.common.mask |= GNSS_AIDING_DATA_COMMON_TIME_BIT;
+        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_IONO)
+            data.sv.svMask |= GNSS_AIDING_DATA_SV_IONOSPHERE_BIT;
+        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_UTC)
+            data.common.mask |= GNSS_AIDING_DATA_COMMON_UTC_BIT;
+        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_HEALTH)
+            data.sv.svMask |= GNSS_AIDING_DATA_SV_HEALTH_BIT;
+        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_SVDIR)
+            data.sv.svMask |= GNSS_AIDING_DATA_SV_DIRECTION_BIT;
+        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_SVSTEER)
+            data.sv.svMask |= GNSS_AIDING_DATA_SV_STEER_BIT;
+        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_SADATA)
+            data.sv.svMask |= GNSS_AIDING_DATA_SV_SA_DATA_BIT;
+        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_RTI)
+            data.common.mask |= GNSS_AIDING_DATA_COMMON_RTI_BIT;
+        if (aidingDataFlags & IGnss::GnssAidingData::DELETE_CELLDB_INFO)
+            data.common.mask |= GNSS_AIDING_DATA_COMMON_CELLDB_BIT;
+    }
+    mControlClient->locAPIGnssDeleteAidingData(data);
+}
+
+void GnssAPIClient::gnssEnable(LocationTechnologyType techType)
+{
+    LOC_LOGD("%s]: (%0d)", __FUNCTION__, techType);
+    if (mControlClient == nullptr) {
+        return;
+    }
+    mControlClient->locAPIEnable(techType);
+}
+
+void GnssAPIClient::gnssDisable()
+{
+    LOC_LOGD("%s]: ()", __FUNCTION__);
+    if (mControlClient == nullptr) {
+        return;
+    }
+    mControlClient->locAPIDisable();
+}
+
 void GnssAPIClient::gnssConfigurationUpdate(const GnssConfig& gnssConfig)
 {
     LOC_LOGD("%s]: (%02x)", __FUNCTION__, gnssConfig.flags);
-    locAPIGnssUpdateConfig(gnssConfig);
+    if (mControlClient == nullptr) {
+        return;
+    }
+    mControlClient->locAPIGnssUpdateConfig(gnssConfig);
 }
 
 void GnssAPIClient::requestCapabilities() {
@@ -256,9 +301,12 @@ void GnssAPIClient::onCapabilitiesCb(LocationCapabilitiesMask capabilitiesMask)
     }
     if (mGnssCbIface != nullptr) {
         IGnssCallback::GnssSystemInfo gnssInfo;
-        gnssInfo.yearOfHw = 2015;
-        if (capabilitiesMask & LOCATION_CAPABILITIES_GNSS_MEASUREMENTS_BIT) {
+        if (capabilitiesMask & LOCATION_CAPABILITIES_DEBUG_NMEA_BIT) {
             gnssInfo.yearOfHw = 2017;
+        } else if (capabilitiesMask & LOCATION_CAPABILITIES_GNSS_MEASUREMENTS_BIT) {
+            gnssInfo.yearOfHw = 2016;
+        } else {
+            gnssInfo.yearOfHw = 2015;
         }
         LOC_LOGV("%s:%d] set_system_info_cb (%d)", __FUNCTION__, __LINE__, gnssInfo.yearOfHw);
         auto r = mGnssCbIface->gnssSetSystemInfoCb(gnssInfo);
@@ -303,18 +351,14 @@ void GnssAPIClient::onGnssNiCb(uint32_t id, GnssNiNotification gnssNiNotificatio
     else if (gnssNiNotification.type == GNSS_NI_TYPE_CONTROL_PLANE)
         notificationGnss.niType = IGnssNiCallback::GnssNiType::UMTS_CTRL_PLANE;
     else if (gnssNiNotification.type == GNSS_NI_TYPE_EMERGENCY_SUPL)
-        notificationGnss.niType =
-            static_cast<IGnssNiCallback::GnssNiType>(4/*hardcode until IGnssNiCallback adds value*/);
+        notificationGnss.niType = IGnssNiCallback::GnssNiType::EMERGENCY_SUPL;
 
-    if (gnssNiNotification.options == GNSS_NI_OPTIONS_NOTIFICATION)
-        notificationGnss.notifyFlags =
-            static_cast<uint32_t>(IGnssNiCallback::GnssNiNotifyFlags::NEED_NOTIFY);
-    else if (gnssNiNotification.options == GNSS_NI_OPTIONS_VERIFICATION)
-        notificationGnss.notifyFlags =
-            static_cast<uint32_t>(IGnssNiCallback::GnssNiNotifyFlags::NEED_VERIFY);
-    else if (gnssNiNotification.options == GNSS_NI_OPTIONS_PRIVACY_OVERRIDE)
-        notificationGnss.notifyFlags =
-            static_cast<uint32_t>(IGnssNiCallback::GnssNiNotifyFlags::PRIVACY_OVERRIDE);
+    if (gnssNiNotification.options & GNSS_NI_OPTIONS_NOTIFICATION_BIT)
+        notificationGnss.notifyFlags |= IGnssNiCallback::GnssNiNotifyFlags::NEED_NOTIFY;
+    if (gnssNiNotification.options & GNSS_NI_OPTIONS_VERIFICATION_BIT)
+        notificationGnss.notifyFlags |= IGnssNiCallback::GnssNiNotifyFlags::NEED_VERIFY;
+    if (gnssNiNotification.options & GNSS_NI_OPTIONS_PRIVACY_OVERRIDE_BIT)
+        notificationGnss.notifyFlags |= IGnssNiCallback::GnssNiNotifyFlags::PRIVACY_OVERRIDE;
 
     notificationGnss.timeoutSec = gnssNiNotification.timeout;
 
@@ -381,7 +425,7 @@ void GnssAPIClient::onGnssNmeaCb(GnssNmeaNotification gnssNmeaNotification)
         auto r = mGnssCbIface->gnssNmeaCb(
             static_cast<GnssUtcTime>(gnssNmeaNotification.timestamp), nmeaString);
         if (!r.isOk()) {
-            LOC_LOGE("%s] Error from gnssNmeaCb nmea=%s length=%u description=%s", __func__,
+            LOC_LOGE("%s] Error from gnssNmeaCb nmea=%s length=%zu description=%s", __func__,
                 gnssNmeaNotification.nmea, gnssNmeaNotification.length, r.description().c_str());
         }
     }
