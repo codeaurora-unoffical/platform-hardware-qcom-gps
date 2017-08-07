@@ -45,8 +45,7 @@ libloc_eng_so_la_CFLAGS = $(AM_CFLAGS)
 libloc_eng_so_la_LDFLAGS = -Wl,-z,defs -lpthread -shared -version-info 1:0:0
 libloc_eng_so_la_CPPFLAGS = $(AM_CFLAGS) $(AM_CPPFLAGS)
 endif
-
-libloc_eng_so_la_LIBADD = -lstdc++ -ldl -llog $(LOCPLA_LIBS) $(GPSUTILS_LIBS) ../core/libloc_core.la
+libloc_eng_so_la_LIBADD = -lcutils -lstdc++ -ldl -llog $(LOCPLA_LIBS) $(GPSUTILS_LIBS) ../core/libloc_core.la
 
 libloc_ds_api_CFLAGS = \
      $(QMIF_CFLAGS) \
@@ -69,7 +68,7 @@ libloc_ds_api_la_LDFLAGS += -Wl,--export-dynamic
 libloc_ds_api_la_CPPFLAGS = $(AM_CFLAGS) $(AM_CPPFLAGS) $(libloc_ds_api_CFLAGS)
 endif
 
-libloc_ds_api_la_LIBADD = -lstdc++ $(QMIF_LIBS) -lqmiservices -ldsi_netctrl $(GPSUTILS_LIBS) $(LOCPLA_LIBS)
+libloc_ds_api_la_LIBADD = -lcutils -lstdc++ $(QMIF_LIBS) -lqmiservices -ldsi_netctrl $(GPSUTILS_LIBS) $(LOCPLA_LIBS)
 
 libloc_api_v02_CFLAGS = \
      $(QMIF_CFLAGS) \
@@ -94,7 +93,7 @@ libloc_api_v02_la_CPPFLAGS = $(AM_CFLAGS) $(AM_CPPFLAGS) $(libloc_api_v02_CFLAGS
 endif
 
 libloc_api_v02_la_CXXFLAGS = -std=c++0x
-libloc_api_v02_la_LIBADD = -lstdc++ -lqmi_cci -lqmi_common_so $(QMIF_LIBS) $(LOCPLA_LIBS) ../core/libloc_core.la $(GPSUTILS_LIBS) libloc_ds_api.la
+libloc_api_v02_la_LIBADD = -lcutils -lstdc++ -lqmi_cci -lqmi_common_so $(QMIF_LIBS) $(LOCPLA_LIBS) ../core/libloc_core.la $(GPSUTILS_LIBS) libloc_ds_api.la
 
 library_include_HEADERS = \
    libloc_api_50001/LocEngAdapter.h \
