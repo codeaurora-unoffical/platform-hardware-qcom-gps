@@ -55,6 +55,7 @@ struct GnssInterface {
     void (*agpsDataConnClosed)(short agpsType);
     void (*agpsDataConnFailed)(short agpsType);
     void (*getDebugReport)(GnssDebugReport& report);
+    void (*updateConnectionStatus)(bool connected, uint8_t type);
 };
 
 struct FlpInterface {
@@ -67,9 +68,10 @@ struct FlpInterface {
     uint32_t (*startTracking)(LocationAPI* client, LocationOptions& options);
     void (*updateTrackingOptions)(LocationAPI* client, uint32_t id, LocationOptions& options);
     void (*stopTracking)(LocationAPI* client, uint32_t id);
-    uint32_t (*startBatching)(LocationAPI* client, LocationOptions&);
+    uint32_t (*startBatching)(LocationAPI* client, LocationOptions&, BatchingOptions&);
     void (*stopBatching)(LocationAPI* client, uint32_t id);
-    void (*updateBatchingOptions)(LocationAPI* client, uint32_t id, LocationOptions&);
+    void (*updateBatchingOptions)(LocationAPI* client, uint32_t id, LocationOptions&,
+            BatchingOptions&);
     void (*getBatchedLocations)(LocationAPI* client, uint32_t id, size_t count);
     void (*getPowerStateChanges)(void* powerStateCb);
 };
