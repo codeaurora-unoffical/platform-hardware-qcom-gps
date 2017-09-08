@@ -26,7 +26,6 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-
 #include "GnssAdapter.h"
 #include "location_interface.h"
 
@@ -59,7 +58,7 @@ static void agpsDataConnOpen(AGpsExtType agpsType, const char* apnName, int apnL
 static void agpsDataConnClosed(AGpsExtType agpsType);
 static void agpsDataConnFailed(AGpsExtType agpsType);
 static void getDebugReport(GnssDebugReport& report);
-static void updateConnectionStatus(bool connected, uint8_t type);
+static void updateConnectionStatus(bool connected, int8_t type);
 
 static const GnssInterface gGnssInterface = {
     sizeof(GnssInterface),
@@ -251,7 +250,7 @@ static void getDebugReport(GnssDebugReport& report) {
     }
 }
 
-static void updateConnectionStatus(bool connected, uint8_t type) {
+static void updateConnectionStatus(bool connected, int8_t type) {
     if (NULL != gGnssAdapter) {
         gGnssAdapter->getSystemStatus()->eventConnectionStatus(connected, type);
     }
