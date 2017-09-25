@@ -1887,9 +1887,21 @@ static int loc_eng_reinit(loc_eng_data_s_type &loc_eng_data)
                                             gps_conf.LPPE_UP_TECHNOLOGY));
 
     if ( adapter->getEvtMask() & LOC_API_ADAPTER_BIT_NMEA_1HZ_REPORT) {
-        NmeaSentenceTypesMask typesMask = loc_eng_data.generateNmea ?
-                LOC_NMEA_MASK_DEBUG_V02 : LOC_NMEA_ALL_SUPPORTED_MASK;
-        adapter->sendMsg(new LocEngSetNmeaTypes(adapter,typesMask));
+        NmeaSentenceTypesMask typesMask = 0;
+        if (!loc_eng_data.generateNmea) {
+            // generate by modem, then enable all general sentences
+            typesMask |= LOC_NMEA_ALL_GENERAL_SUPPORTED_MASK;
+        }
+        if (adapter->isFeatureSupported(LOC_SUPPORTED_FEATURE_DEBUG_NMEA_V02)) {
+            typesMask |= LOC_NMEA_MASK_DEBUG_V02;
+        }
+        if (typesMask != 0) {
+            adapter->sendMsg(new LocEngSetNmeaTypes(adapter,typesMask));
+        } else {
+            // disable NMEA bit if no sentences needed
+            adapter->updateEvtMask(LOC_API_ADAPTER_BIT_NMEA_1HZ_REPORT,
+                    LOC_REGISTRATION_MASK_DISABLED);
+        }
     }
 
     /* Make sure at least one of the sensor property is specified by the user in the gps.conf file. */
