@@ -33,6 +33,15 @@
 #define GPS_PRN_END   32
 #define GLONASS_PRN_START 65
 #define GLONASS_PRN_END   96
+
+// GNSS system id according to NMEA spec
+#define SYSTEM_ID_GPS          1
+#define SYSTEM_ID_GLONASS      2
+#define SYSTEM_ID_GALILEO      3
+// Extended systems
+#define SYSTEM_ID_BEIDOU       4
+#define SYSTEM_ID_QZSS         5
+
 #include <loc_eng.h>
 #include <loc_eng_nmea.h>
 #include <math.h>
@@ -203,6 +212,13 @@ void loc_eng_nmea_generate_pos(loc_eng_data_s_type *loc_eng_data_p,
         {   // no dop
             length = snprintf(pMarker, lengthRemaining, ",,");
         }
+        pMarker += length;
+        lengthRemaining -= length;
+
+        // system id
+        length = snprintf(pMarker, lengthRemaining, "%d", SYSTEM_ID_GPS);
+        pMarker += length;
+        lengthRemaining -= length;
 
         length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
         loc_eng_nmea_send(sentence, length, loc_eng_data_p);
@@ -421,6 +437,14 @@ void loc_eng_nmea_generate_pos(loc_eng_data_s_type *loc_eng_data_p,
         else
             length = snprintf(pMarker, lengthRemaining, "%c", 'D'); // D means differential
 
+        pMarker += length;
+        lengthRemaining -= length;
+
+        // hardcode Navigation Status field to 'V'
+        length = snprintf(pMarker, lengthRemaining, ",%c", 'V');
+        pMarker += length;
+        lengthRemaining -= length;
+
         length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
         loc_eng_nmea_send(sentence, length, loc_eng_data_p);
 
@@ -566,7 +590,7 @@ void loc_eng_nmea_generate_pos(loc_eng_data_s_type *loc_eng_data_p,
         length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
         loc_eng_nmea_send(sentence, length, loc_eng_data_p);
 
-        strlcpy(sentence, "$GPRMC,,V,,,,,,,,,,N", sizeof(sentence));
+        strlcpy(sentence, "$GPRMC,,V,,,,,,,,,,N,V", sizeof(sentence));
         length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
         loc_eng_nmea_send(sentence, length, loc_eng_data_p);
 
@@ -638,7 +662,7 @@ void loc_eng_nmea_generate_sv(loc_eng_data_s_type *loc_eng_data_p,
     if (gpsCount <= 0)
     {
         // no svs in view, so just send a blank $GPGSV sentence
-        strlcpy(sentence, "$GPGSV,1,1,0,", sizeof(sentence));
+        strlcpy(sentence, "$GPGSV,1,1,0,1", sizeof(sentence));
         length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
         loc_eng_nmea_send(sentence, length, loc_eng_data_p);
     }
@@ -701,6 +725,11 @@ void loc_eng_nmea_generate_sv(loc_eng_data_s_type *loc_eng_data_p,
 
             }
 
+            // signalId
+            length = snprintf(pMarker, lengthRemaining,",%d",1);
+            pMarker += length;
+            lengthRemaining -= length;
+
             length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
             loc_eng_nmea_send(sentence, length, loc_eng_data_p);
             sentenceNumber++;
@@ -716,7 +745,7 @@ void loc_eng_nmea_generate_sv(loc_eng_data_s_type *loc_eng_data_p,
     if (glnCount <= 0)
     {
         // no svs in view, so just send a blank $GLGSV sentence
-        strlcpy(sentence, "$GLGSV,1,1,0,", sizeof(sentence));
+        strlcpy(sentence, "$GLGSV,1,1,0,1", sizeof(sentence));
         length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
         loc_eng_nmea_send(sentence, length, loc_eng_data_p);
     }
@@ -778,6 +807,11 @@ void loc_eng_nmea_generate_sv(loc_eng_data_s_type *loc_eng_data_p,
                }
 
             }
+
+            // signalId
+            length = snprintf(pMarker, lengthRemaining,",%d",1);
+            pMarker += length;
+            lengthRemaining -= length;
 
             length = loc_eng_nmea_put_checksum(sentence, sizeof(sentence));
             loc_eng_nmea_send(sentence, length, loc_eng_data_p);
