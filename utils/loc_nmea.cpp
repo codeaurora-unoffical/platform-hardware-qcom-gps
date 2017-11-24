@@ -35,6 +35,15 @@
 
 #define GLONASS_SV_ID_OFFSET 64
 #define MAX_SATELLITES_IN_USE 12
+
+// GNSS system id according to NMEA spec
+#define SYSTEM_ID_GPS          1
+#define SYSTEM_ID_GLONASS      2
+#define SYSTEM_ID_GALILEO      3
+// Extended systems
+#define SYSTEM_ID_BEIDOU       4
+#define SYSTEM_ID_QZSS         5
+
 typedef struct loc_nmea_sv_meta_s
 {
     char talker[3];
@@ -42,6 +51,8 @@ typedef struct loc_nmea_sv_meta_s
     uint32_t mask;
     uint32_t svCount;
     uint32_t svIdOffset;
+    uint32_t signalId;
+    uint32_t systemId;
 } loc_nmea_sv_meta;
 
 typedef struct loc_sv_cache_info_s
@@ -89,6 +100,8 @@ static loc_nmea_sv_meta* loc_nmea_sv_meta_init(loc_nmea_sv_meta& sv_meta,
             sv_meta.talker[1] = 'P';
             sv_meta.mask = sv_cache_info.gps_used_mask;
             sv_meta.svCount = sv_cache_info.gps_count;
+            sv_meta.signalId = 1;
+            sv_meta.systemId = SYSTEM_ID_GPS;
             break;
         case LOC_GNSS_CONSTELLATION_GLONASS:
             sv_meta.talker[1] = 'L';
@@ -96,11 +109,15 @@ static loc_nmea_sv_meta* loc_nmea_sv_meta_init(loc_nmea_sv_meta& sv_meta,
             sv_meta.svCount = sv_cache_info.glo_count;
             // GLONASS SV ids are from 65-96
             sv_meta.svIdOffset = GLONASS_SV_ID_OFFSET;
+            sv_meta.signalId = 1;
+            sv_meta.systemId = SYSTEM_ID_GLONASS;
             break;
         case LOC_GNSS_CONSTELLATION_GALILEO:
             sv_meta.talker[1] = 'A';
             sv_meta.mask = sv_cache_info.gal_used_mask;
             sv_meta.svCount = sv_cache_info.gal_count;
+            sv_meta.signalId = 7;
+            sv_meta.systemId = SYSTEM_ID_GALILEO;
             break;
         default:
             LOC_LOGE("NMEA Error unknow constellation type: %d", svType);
@@ -222,13 +239,14 @@ static uint32_t loc_nmea_generate_GSA(const GpsLocationExtended &locationExtende
         fixType = '3'; // 3D fix
 
     // Start printing the sentence
-    // Format: $--GSA,a,x,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,p.p,h.h,v.v*cc
+    // Format: $--GSA,a,x,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,p.p,h.h,v.v,s*cc
     // a : Mode  : A : Automatic, allowed to automatically switch 2D/3D
     // x : Fixtype : 1 (no fix), 2 (2D fix), 3 (3D fix)
     // xx : 12 SV ID
     // p.p : Position DOP (Dilution of Precision)
     // h.h : Horizontal DOP
     // v.v : Vertical DOP
+    // s : GNSS System Id
     // cc : Checksum value
     length = snprintf(pMarker, lengthRemaining, "$%sGSA,A,%c,", talker, fixType);
 
@@ -291,7 +309,7 @@ DESCRIPTION
    Generate NMEA GSV sentences generated based on sv report
    Currently below sentences are generated:
    - $GPGSV: GPS Satellites in View
-   - $GNGSV: GLONASS Satellites in View
+   - $GLGSV: GLONASS Satellites in View
    - $GAGSV: GALILEO Satellites in View
 
 DEPENDENCIES
@@ -331,7 +349,7 @@ static void loc_nmea_generate_GSV(const LocGnssSvStatus &svStatus,
     if (svCount <= 0)
     {
         // no svs in view, so just send a blank $--GSV sentence
-        snprintf(sentence, lengthRemaining, "$%sGSV,1,1,0,", talker);
+        snprintf(sentence, lengthRemaining, "$%sGSV,1,1,0,%d", talker, sv_meta_p->signalId);
         length = loc_nmea_put_checksum(sentence, bufSize);
         nmeaArraystr.push_back(sentence);
         return;
@@ -392,6 +410,11 @@ static void loc_nmea_generate_GSV(const LocGnssSvStatus &svStatus,
             }
 
         }
+
+        // append signalId
+        length = snprintf(pMarker, lengthRemaining,",%d",sv_meta_p->signalId);
+        pMarker += length;
+        lengthRemaining -= length;
 
         length = loc_nmea_put_checksum(sentence, bufSize);
         nmeaArraystr.push_back(sentence);
@@ -714,6 +737,14 @@ void loc_nmea_generate_pos(const UlpLocation &location,
         else  // A means autonomous
             length = snprintf(pMarker, lengthRemaining, "%c", 'A');
 
+        pMarker += length;
+        lengthRemaining -= length;
+
+        // hardcode Navigation Status field to 'V'
+        length = snprintf(pMarker, lengthRemaining, ",%c", 'V');
+        pMarker += length;
+        lengthRemaining -= length;
+
         length = loc_nmea_put_checksum(sentence, sizeof(sentence));
         nmeaArraystr.push_back(sentence);
 
@@ -872,7 +903,7 @@ void loc_nmea_generate_pos(const UlpLocation &location,
         length = loc_nmea_put_checksum(sentence, sizeof(sentence));
         nmeaArraystr.push_back(sentence);
 
-        strlcpy(sentence, "$GPRMC,,V,,,,,,,,,,N", sizeof(sentence));
+        strlcpy(sentence, "$GPRMC,,V,,,,,,,,,,N,V", sizeof(sentence));
         length = loc_nmea_put_checksum(sentence, sizeof(sentence));
         nmeaArraystr.push_back(sentence);
 
