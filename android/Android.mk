@@ -63,7 +63,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := android.hardware.gnss@1.0-service-qti
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_EXECUTABLES)
 LOCAL_MODULE_RELATIVE_PATH := hw
-LOCAL_PROPRIETARY_MODULE := true
+LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE_OWNER := qti
 LOCAL_INIT_RC := android.hardware.gnss@1.0-service-qti.rc
 LOCAL_SRC_FILES := \
