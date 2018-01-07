@@ -2268,9 +2268,9 @@ GnssAdapter::reportNmea(const char* nmea, size_t length)
     GnssNmeaNotification nmeaNotification = {};
     nmeaNotification.size = sizeof(GnssNmeaNotification);
 
-    struct timeval tv;
-    gettimeofday(&tv, (struct timezone *) NULL);
-    int64_t now = tv.tv_sec * 1000LL + tv.tv_usec / 1000;
+    struct timespec tv;
+    clock_gettime(CLOCK_MONOTONIC, &tv);
+    int64_t now = tv.tv_sec * 1000LL + tv.tv_nsec / 1000000LL;
     nmeaNotification.timestamp = now;
     nmeaNotification.nmea = nmea;
     nmeaNotification.length = length;
@@ -2317,14 +2317,14 @@ static void* niThreadProc(void *args)
     NiSession* pSession = (NiSession*)args;
     int rc = 0;          /* return code from pthread calls */
 
-    struct timeval present_time;
+    struct timespec present_time;
     struct timespec expire_time;
 
     pthread_mutex_lock(&pSession->tLock);
     /* Calculate absolute expire time */
-    gettimeofday(&present_time, NULL);
+    clock_gettime(CLOCK_MONOTONIC, &present_time);
     expire_time.tv_sec  = present_time.tv_sec + pSession->respTimeLeft;
-    expire_time.tv_nsec = present_time.tv_usec * 1000;
+    expire_time.tv_nsec = present_time.tv_nsec;
     LOC_LOGD("%s]: time out set for abs time %ld with delay %d sec",
              __func__, (long)expire_time.tv_sec, pSession->respTimeLeft);
 
@@ -3015,8 +3015,8 @@ bool GnssAdapter::getDebugReport(GnssDebugReport& r)
               (int64_t)(reports.mTimeAndClock.back().mGpsTowMs);
 
         r.mTime.timeUncertaintyNs =
-            (float)((reports.mTimeAndClock.back().mTimeUnc +
-                     reports.mTimeAndClock.back().mLeapSecUnc)*1000);
+                ((float)(reports.mTimeAndClock.back().mTimeUnc) +
+                 (float)(reports.mTimeAndClock.back().mLeapSecUnc))*1000.0f;
         r.mTime.frequencyUncertaintyNsPerSec =
             (float)(reports.mTimeAndClock.back().mClockFreqBiasUnc);
         LOC_LOGV("getDebugReport - timeestimate=%" PRIu64 " unc=%f frequnc=%f",
