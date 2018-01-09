@@ -2268,9 +2268,9 @@ GnssAdapter::reportNmea(const char* nmea, size_t length)
     GnssNmeaNotification nmeaNotification = {};
     nmeaNotification.size = sizeof(GnssNmeaNotification);
 
-    struct timespec tv;
-    clock_gettime(CLOCK_MONOTONIC, &tv);
-    int64_t now = tv.tv_sec * 1000LL + tv.tv_nsec / 1000000LL;
+    struct timeval tv;
+    gettimeofday(&tv, (struct timezone *) NULL);
+    int64_t now = tv.tv_sec * 1000LL + tv.tv_usec / 1000;
     nmeaNotification.timestamp = now;
     nmeaNotification.nmea = nmea;
     nmeaNotification.length = length;
@@ -2317,14 +2317,14 @@ static void* niThreadProc(void *args)
     NiSession* pSession = (NiSession*)args;
     int rc = 0;          /* return code from pthread calls */
 
-    struct timespec present_time;
+    struct timeval present_time;
     struct timespec expire_time;
 
     pthread_mutex_lock(&pSession->tLock);
     /* Calculate absolute expire time */
-    clock_gettime(CLOCK_MONOTONIC, &present_time);
+    gettimeofday(&present_time, NULL);
     expire_time.tv_sec  = present_time.tv_sec + pSession->respTimeLeft;
-    expire_time.tv_nsec = present_time.tv_nsec;
+    expire_time.tv_nsec = present_time.tv_usec * 1000;
     LOC_LOGD("%s]: time out set for abs time %ld with delay %d sec",
              __func__, (long)expire_time.tv_sec, pSession->respTimeLeft);
 
