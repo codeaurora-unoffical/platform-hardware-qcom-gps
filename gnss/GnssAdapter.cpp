@@ -81,6 +81,13 @@ GnssAdapter::GnssAdapter() :
     LOC_LOGD("%s]: Constructor %p", __func__, this);
     mUlpPositionMode.mode = LOC_POSITION_MODE_INVALID;
 
+    pthread_condattr_t condAttr;
+    pthread_condattr_init(&condAttr);
+    pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC);
+    pthread_cond_init(&mNiData.session.tCond, &condAttr);
+    pthread_cond_init(&mNiData.sessionEs.tCond, &condAttr);
+    pthread_condattr_destroy(&condAttr);
+
     /* Set ATL open/close callbacks */
     AgpsAtlOpenStatusCb atlOpenStatusCb =
             [this](int handle, int isSuccess, char* apn,
