@@ -1350,11 +1350,10 @@ void SystemStatus::getIteminReport(TYPE_REPORT& reportout, const TYPE_ITEM& c) c
 @param[In]  data pointer to the NMEA string
 @param[In]  len  length of the NMEA string
 
-@return     true when successfully done
+@return     true when the NMEA is consumed by the method.
 ******************************************************************************/
 bool SystemStatus::setNmeaString(const char *data, uint32_t len)
 {
-    bool ret = false;
     if (!loc_nmea_is_debug(data, len)) {
         return false;
     }
@@ -1365,43 +1364,43 @@ bool SystemStatus::setNmeaString(const char *data, uint32_t len)
     pthread_mutex_lock(&mMutexSystemStatus);
 
     // parse the received nmea strings here
-    if      (0 == strncmp(data, "$PQWM1", SystemStatusNmeaBase::NMEA_MINSIZE)) {
+    if (0 == strncmp(data, "$PQWM1", SystemStatusNmeaBase::NMEA_MINSIZE)) {
         SystemStatusPQWM1 s = SystemStatusPQWM1parser(buf, len).get();
-        ret |= setIteminReport(mCache.mTimeAndClock, SystemStatusTimeAndClock(s));
-        ret |= setIteminReport(mCache.mXoState, SystemStatusXoState(s));
-        ret |= setIteminReport(mCache.mRfAndParams, SystemStatusRfAndParams(s));
-        ret |= setIteminReport(mCache.mErrRecovery, SystemStatusErrRecovery(s));
+        setIteminReport(mCache.mTimeAndClock, SystemStatusTimeAndClock(s));
+        setIteminReport(mCache.mXoState, SystemStatusXoState(s));
+        setIteminReport(mCache.mRfAndParams, SystemStatusRfAndParams(s));
+        setIteminReport(mCache.mErrRecovery, SystemStatusErrRecovery(s));
     }
     else if (0 == strncmp(data, "$PQWP1", SystemStatusNmeaBase::NMEA_MINSIZE)) {
-        ret = setIteminReport(mCache.mInjectedPosition,
+        setIteminReport(mCache.mInjectedPosition,
                 SystemStatusInjectedPosition(SystemStatusPQWP1parser(buf, len).get()));
     }
     else if (0 == strncmp(data, "$PQWP2", SystemStatusNmeaBase::NMEA_MINSIZE)) {
-        ret = setIteminReport(mCache.mBestPosition,
+        setIteminReport(mCache.mBestPosition,
                 SystemStatusBestPosition(SystemStatusPQWP2parser(buf, len).get()));
     }
     else if (0 == strncmp(data, "$PQWP3", SystemStatusNmeaBase::NMEA_MINSIZE)) {
-        ret = setIteminReport(mCache.mXtra,
+        setIteminReport(mCache.mXtra,
                 SystemStatusXtra(SystemStatusPQWP3parser(buf, len).get()));
     }
     else if (0 == strncmp(data, "$PQWP4", SystemStatusNmeaBase::NMEA_MINSIZE)) {
-        ret = setIteminReport(mCache.mEphemeris,
+        setIteminReport(mCache.mEphemeris,
                 SystemStatusEphemeris(SystemStatusPQWP4parser(buf, len).get()));
     }
     else if (0 == strncmp(data, "$PQWP5", SystemStatusNmeaBase::NMEA_MINSIZE)) {
-        ret = setIteminReport(mCache.mSvHealth,
+        setIteminReport(mCache.mSvHealth,
                 SystemStatusSvHealth(SystemStatusPQWP5parser(buf, len).get()));
     }
     else if (0 == strncmp(data, "$PQWP6", SystemStatusNmeaBase::NMEA_MINSIZE)) {
-        ret = setIteminReport(mCache.mPdr,
+        setIteminReport(mCache.mPdr,
                 SystemStatusPdr(SystemStatusPQWP6parser(buf, len).get()));
     }
     else if (0 == strncmp(data, "$PQWP7", SystemStatusNmeaBase::NMEA_MINSIZE)) {
-        ret = setIteminReport(mCache.mNavData,
+        setIteminReport(mCache.mNavData,
                 SystemStatusNavData(SystemStatusPQWP7parser(buf, len).get()));
     }
     else if (0 == strncmp(data, "$PQWS1", SystemStatusNmeaBase::NMEA_MINSIZE)) {
-        ret = setIteminReport(mCache.mPositionFailure,
+        setIteminReport(mCache.mPositionFailure,
                 SystemStatusPositionFailure(SystemStatusPQWS1parser(buf, len).get()));
     }
     else {
@@ -1409,7 +1408,7 @@ bool SystemStatus::setNmeaString(const char *data, uint32_t len)
     }
 
     pthread_mutex_unlock(&mMutexSystemStatus);
-    return ret;
+    return true;
 }
 
 /******************************************************************************
@@ -1656,7 +1655,7 @@ bool SystemStatus::getReport(SystemStatusReports& report, bool isLatestOnly) con
 
 @return     true when successfully done
 ******************************************************************************/
-bool SystemStatus::setDefaultReport(void)
+bool SystemStatus::setDefaultGnssEngineStates(void)
 {
     pthread_mutex_lock(&mMutexSystemStatus);
 
@@ -1676,29 +1675,6 @@ bool SystemStatus::setDefaultReport(void)
     setDefaultIteminReport(mCache.mNavData, SystemStatusNavData());
 
     setDefaultIteminReport(mCache.mPositionFailure, SystemStatusPositionFailure());
-
-    setDefaultIteminReport(mCache.mAirplaneMode, SystemStatusAirplaneMode());
-    setDefaultIteminReport(mCache.mENH, SystemStatusENH());
-    setDefaultIteminReport(mCache.mGPSState, SystemStatusGpsState());
-    setDefaultIteminReport(mCache.mNLPStatus, SystemStatusNLPStatus());
-    setDefaultIteminReport(mCache.mWifiHardwareState, SystemStatusWifiHardwareState());
-    setDefaultIteminReport(mCache.mNetworkInfo, SystemStatusNetworkInfo());
-    setDefaultIteminReport(mCache.mRilServiceInfo, SystemStatusServiceInfo());
-    setDefaultIteminReport(mCache.mRilCellInfo, SystemStatusRilCellInfo());
-    setDefaultIteminReport(mCache.mServiceStatus, SystemStatusServiceStatus());
-    setDefaultIteminReport(mCache.mModel, SystemStatusModel());
-    setDefaultIteminReport(mCache.mManufacturer, SystemStatusManufacturer());
-    setDefaultIteminReport(mCache.mAssistedGps, SystemStatusAssistedGps());
-    setDefaultIteminReport(mCache.mScreenState, SystemStatusScreenState());
-    setDefaultIteminReport(mCache.mPowerConnectState, SystemStatusPowerConnectState());
-    setDefaultIteminReport(mCache.mTimeZoneChange, SystemStatusTimeZoneChange());
-    setDefaultIteminReport(mCache.mTimeChange, SystemStatusTimeChange());
-    setDefaultIteminReport(mCache.mWifiSupplicantStatus, SystemStatusWifiSupplicantStatus());
-    setDefaultIteminReport(mCache.mShutdownState, SystemStatusShutdownState());
-    setDefaultIteminReport(mCache.mTac, SystemStatusTac());
-    setDefaultIteminReport(mCache.mMccMnc, SystemStatusMccMnc());
-    setDefaultIteminReport(mCache.mBtDeviceScanDetail, SystemStatusBtDeviceScanDetail());
-    setDefaultIteminReport(mCache.mBtLeDeviceScanDetail, SystemStatusBtleDeviceScanDetail());
 
     pthread_mutex_unlock(&mMutexSystemStatus);
     return true;
