@@ -23,7 +23,8 @@ libgps_utils_so_la_h_sources = \
         loc_nmea.h \
         gps_extended_c.h \
         gps_extended.h \
-        loc_gps.h
+        loc_gps.h \
+        LocUnorderedSetMap.h
 
 libgps_utils_so_la_c_sources = \
         linked_list.c \
@@ -55,7 +56,7 @@ endif
 
 libgps_utils_so_la_LIBADD = -lcutils -lstdc++ -llog $(LOCPLA_LIBS)
 
-#Create and Install libraries
+#Create and Install libraries.
 lib_LTLIBRARIES = libgps_utils_so.la
 library_includedir = $(pkgincludedir)
 pkgconfigdir = $(libdir)/pkgconfig
