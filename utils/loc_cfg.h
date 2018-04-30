@@ -34,7 +34,7 @@
 #include <stdint.h>
 
 #define LOC_MAX_PARAM_NAME                 80
-#define LOC_MAX_PARAM_STRING               80
+#define LOC_MAX_PARAM_STRING               170
 #define LOC_MAX_PARAM_LINE    (LOC_MAX_PARAM_NAME + LOC_MAX_PARAM_STRING)
 
 #define UTIL_UPDATE_CONF(conf_data, len, config_table) \
