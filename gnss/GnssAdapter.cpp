@@ -65,7 +65,7 @@ GnssAdapter::GnssAdapter() :
                    LocDualContext::getLocFgContext(NULL,
                                                    NULL,
                                                    LocDualContext::mLocationHalName,
-                                                   false)),
+                                                   false), true, nullptr),
     mUlpProxy(new UlpProxyBase()),
     mEngHubProxy(new EngineHubProxyBase()),
     mUlpPositionMode(),
@@ -821,6 +821,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
             if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_GPS_LOCK_VALID_BIT) {
                 uint32_t newGpsLock = mAdapter.convertGpsLock(gnssConfigRequested.gpsLock);
                 ContextBase::mGps_conf.GPS_LOCK = newGpsLock;
+                if (0 == ContextBase::mGps_conf.GPS_LOCK) {
+                    ContextBase::mGps_conf.GPS_LOCK = 3;
+                }
                 if (0 != mAdapter.getPowerVoteId()) {
                     gnssConfigNeedEngineUpdate.flags &= ~(GNSS_CONFIG_FLAGS_GPS_LOCK_VALID_BIT);
                 }
@@ -1354,7 +1357,7 @@ GnssAdapter::updateClientsEventMask()
         mask |= LOC_API_ADAPTER_BIT_GNSS_MEASUREMENT;
         mask |= LOC_API_ADAPTER_BIT_GNSS_SV_POLYNOMIAL_REPORT;
         mask |= LOC_API_ADAPTER_BIT_PARSED_UNPROPAGATED_POSITION_REPORT;
-        LOC_LOGD("%s]: Auto usecase, Enable MEAS/POLY - mask 0x%x", __func__, mask);
+        LOC_LOGD("%s]: Auto usecase, Enable MEAS/POLY - mask 0x%" PRIx64 "", __func__, mask);
     }
 
     if (mAgpsCbInfo.statusV4Cb != NULL) {

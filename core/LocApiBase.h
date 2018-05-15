@@ -122,6 +122,7 @@ protected:
     inline virtual ~LocApiBase() { close(); }
     bool isInSession();
     const LOC_API_ADAPTER_EVENT_MASK_T mExcludedMask;
+    bool isMaster();
 
 public:
     inline void sendMsg(const LocMsg* msg) const {
@@ -262,12 +263,6 @@ public:
     void updateNmeaMask(uint32_t mask);
 
     virtual LocationError setGpsLockSync(GnssConfigGpsLock lock);
-    /*
-      Returns
-      Current value of GPS Lock on success
-      -1 on failure
-     */
-    virtual int getGpsLock(void);
 
     virtual LocationError setXtraVersionCheckSync(uint32_t check);
 

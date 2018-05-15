@@ -59,6 +59,7 @@ class LocAdapterProxyBase;
 class LocAdapterBase {
 private:
     static uint32_t mSessionIdCounter;
+    const bool mIsMaster;
 protected:
     LOC_API_ADAPTER_EVENT_MASK_T mEvtMask;
     ContextBase* mContext;
@@ -66,12 +67,18 @@ protected:
     LocAdapterProxyBase* mLocAdapterProxyBase;
     const MsgTask* mMsgTask;
     inline LocAdapterBase(const MsgTask* msgTask) :
-        mEvtMask(0), mContext(NULL), mLocApi(NULL),
+        mIsMaster(false), mEvtMask(0), mContext(NULL), mLocApi(NULL),
         mLocAdapterProxyBase(NULL), mMsgTask(msgTask) {}
+    LocAdapterBase(const LOC_API_ADAPTER_EVENT_MASK_T mask,
+        ContextBase* context, bool isMaster,
+        LocAdapterProxyBase *adapterProxyBase = NULL);
 public:
     inline virtual ~LocAdapterBase() { mLocApi->removeAdapter(this); }
-    LocAdapterBase(const LOC_API_ADAPTER_EVENT_MASK_T mask,
-                   ContextBase* context, LocAdapterProxyBase *adapterProxyBase = NULL);
+    inline LocAdapterBase(const LOC_API_ADAPTER_EVENT_MASK_T mask,
+                          ContextBase* context,
+                          LocAdapterProxyBase *adapterProxyBase = NULL) :
+        LocAdapterBase(mask, context, false, adapterProxyBase) {}
+
     inline LOC_API_ADAPTER_EVENT_MASK_T
         checkMask(LOC_API_ADAPTER_EVENT_MASK_T mask) const {
         return mEvtMask & mask;
@@ -123,6 +130,11 @@ public:
 
         (void)ulp;
     }
+
+    inline bool isAdapterMaster() {
+        return mIsMaster;
+    }
+
     virtual void handleEngineUpEvent();
     virtual void handleEngineDownEvent();
     inline virtual void setPositionModeCommand(LocPosMode& posMode) {
