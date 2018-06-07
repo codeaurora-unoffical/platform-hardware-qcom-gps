@@ -55,6 +55,7 @@ static bool needsGnssTrackingInfo(LocationCallbacks& locationCallbacks)
     return (locationCallbacks.gnssLocationInfoCb != nullptr ||
             locationCallbacks.gnssSvCb != nullptr ||
             locationCallbacks.gnssNmeaCb != nullptr ||
+            locationCallbacks.gnssDataCb != nullptr ||
             locationCallbacks.gnssMeasurementsCb != nullptr);
 }
 
