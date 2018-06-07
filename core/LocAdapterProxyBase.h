@@ -64,11 +64,14 @@ public:
     inline virtual void reportPositionEvent(UlpLocation &location,
                                             GpsLocationExtended &locationExtended,
                                             enum loc_sess_status status,
-                                            LocPosTechMask loc_technology_mask) {
-
+                                            LocPosTechMask loc_technology_mask,
+                                            GnssDataNotification* pDataNotify,
+                                            int msInWeek) {
         (void)location;
         (void)locationExtended;
         (void)status;
+        (void)pDataNotify;
+        (void)msInWeek;
         (void)loc_technology_mask;
     }
 };
