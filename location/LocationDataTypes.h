@@ -850,6 +850,7 @@ typedef struct {
     float elevation;   // elevation of SV (in degrees)
     float azimuth;     // azimuth of SV (in degrees)
     GnssSvOptionsMask gnssSvOptionsMask; // Bitwise OR of GnssSvOptionsBits
+    GnssSignalTypeMask gnssSignalTypeMask; // Specifies GNSS signal type
 } GnssSv;
 
 typedef struct {
@@ -900,6 +901,7 @@ typedef struct {
 typedef struct {
     size_t size;                 // set to sizeof(GnssSvNotification)
     size_t count;                // number of SVs in the GnssSv array
+    bool gnssSignalTypeMaskValid;
     GnssSv gnssSvs[GNSS_SV_MAX]; // information on a number of SVs
 } GnssSvNotification;
 
