@@ -2125,7 +2125,8 @@ GnssAdapter::reportPositionEvent(const UlpLocation& ulpLocation,
                                  bool fromUlp,
                                  bool fromEngineHub)
 {
-    LOC_LOGD("%s]: fromUlp %u status %u", __func__, fromUlp, status);
+    LOC_LOGD("%s]: fromUlp %u, from engine hub %u, status %u, tech mask 0x%x",
+             __func__, fromUlp, fromEngineHub, status, techMask);
 
     // if this event is called from QMI LOC API, then try to call into ULP and return if successfull
     // if the position is called from ULP or engine hub, then send it out directly
@@ -2179,7 +2180,8 @@ GnssAdapter::reportPositionEvent(const UlpLocation& ulpLocation,
         inline virtual void proc() const {
             // extract bug report info - this returns true if consumed by systemstatus
             SystemStatus* s = mAdapter.getSystemStatus();
-            if ((nullptr != s) && (LOC_SESS_SUCCESS == mStatus)){
+            if ((nullptr != s) &&
+                    ((LOC_SESS_SUCCESS == mStatus) || (LOC_SESS_INTERMEDIATE == mStatus))){
                 s->eventPosition(mUlpLocation, mLocationExtended);
             }
             mAdapter.reportPosition(mUlpLocation, mLocationExtended, mStatus, mTechMask);
@@ -2372,7 +2374,6 @@ GnssAdapter::reportNmeaEvent(const char* nmea, size_t length, bool fromUlp)
 {
     // if this event is not called from ULP, then try to call into ULP and return if successfull
     if (!fromUlp && !loc_nmea_is_debug(nmea, length)) {
-        mEngHubProxy->gnssReportNmea(nmea);
         if (mUlpProxy->reportNmea(nmea, length)) {
             return;
         }
@@ -3215,6 +3216,7 @@ GnssAdapter::getAgcInformation(GnssMeasurementsNotification& measurements, int m
             for (size_t i = 0; i < measurements.count; i++) {
                 switch (measurements.measurements[i].svType) {
                 case GNSS_SV_TYPE_GPS:
+                case GNSS_SV_TYPE_QZSS:
                     measurements.measurements[i].agcLevelDb =
                             reports.mRfAndParams.back().mAgcGps;
                     measurements.measurements[i].flags |=
@@ -3242,7 +3244,6 @@ GnssAdapter::getAgcInformation(GnssMeasurementsNotification& measurements, int m
                             GNSS_MEASUREMENTS_DATA_AUTOMATIC_GAIN_CONTROL_BIT;
                     break;
 
-                case GNSS_SV_TYPE_QZSS:
                 case GNSS_SV_TYPE_SBAS:
                 case GNSS_SV_TYPE_UNKNOWN:
                 default:
