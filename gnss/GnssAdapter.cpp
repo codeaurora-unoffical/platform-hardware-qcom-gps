@@ -809,15 +809,14 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
             int index = 0;
 
             if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_GPS_LOCK_VALID_BIT) {
-                index++;
                 uint32_t newGpsLock = mAdapter.convertGpsLock(gnssConfigRequested.gpsLock);
                 ContextBase::mGps_conf.GPS_LOCK = newGpsLock;
                 if (0 != mAdapter.getPowerVoteId()) {
                     gnssConfigNeedEngineUpdate.flags &= ~(GNSS_CONFIG_FLAGS_GPS_LOCK_VALID_BIT);
                 }
+                index++;
             }
             if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_SUPL_VERSION_VALID_BIT) {
-                index++;
                 uint32_t newSuplVersion =
                         mAdapter.convertSuplVersion(gnssConfigRequested.suplVersion);
                 if (newSuplVersion != ContextBase::mGps_conf.SUPL_VER &&
@@ -826,9 +825,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                 } else {
                     gnssConfigNeedEngineUpdate.flags &= ~(GNSS_CONFIG_FLAGS_SUPL_VERSION_VALID_BIT);
                 }
+                index++;
             }
             if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_SET_ASSISTANCE_DATA_VALID_BIT) {
-                index++;
                 if (GNSS_ASSISTANCE_TYPE_SUPL == mConfig.assistanceServer.type) {
                     mAdapter.setSuplHostServer(mConfig.assistanceServer.hostName,
                             mConfig.assistanceServer.port);
@@ -839,9 +838,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                     gnssConfigNeedEngineUpdate.flags &=
                             ~(GNSS_CONFIG_FLAGS_SET_ASSISTANCE_DATA_VALID_BIT);
                 }
+                index++;
             }
             if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_LPP_PROFILE_VALID_BIT) {
-                index++;
                 uint32_t newLppProfile = mAdapter.convertLppProfile(gnssConfigRequested.lppProfile);
                 if (newLppProfile != ContextBase::mGps_conf.LPP_PROFILE &&
                     ContextBase::mGps_conf.AGPS_CONFIG_INJECT) {
@@ -849,9 +848,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                 } else {
                     gnssConfigNeedEngineUpdate.flags &= ~(GNSS_CONFIG_FLAGS_LPP_PROFILE_VALID_BIT);
                 }
+                index++;
             }
             if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_LPPE_CONTROL_PLANE_VALID_BIT) {
-                index++;
                 uint32_t newLppeControlPlaneMask =
                     mAdapter.convertLppeCp(gnssConfigRequested.lppeControlPlaneMask);
                 if (newLppeControlPlaneMask != ContextBase::mGps_conf.LPPE_CP_TECHNOLOGY) {
@@ -860,9 +859,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                     gnssConfigNeedEngineUpdate.flags &=
                             ~(GNSS_CONFIG_FLAGS_LPPE_CONTROL_PLANE_VALID_BIT);
                 }
+                index++;
             }
             if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_LPPE_USER_PLANE_VALID_BIT) {
-                index++;
                 uint32_t newLppeUserPlaneMask =
                     mAdapter.convertLppeUp(gnssConfigRequested.lppeUserPlaneMask);
                 if (newLppeUserPlaneMask != ContextBase::mGps_conf.LPPE_UP_TECHNOLOGY) {
@@ -871,10 +870,10 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                     gnssConfigNeedEngineUpdate.flags &=
                             ~(GNSS_CONFIG_FLAGS_LPPE_USER_PLANE_VALID_BIT);
                 }
+                index++;
             }
             if (gnssConfigRequested.flags &
                     GNSS_CONFIG_FLAGS_AGLONASS_POSITION_PROTOCOL_VALID_BIT) {
-                index++;
                 uint32_t newAGloProtMask =
                     mAdapter.convertAGloProt(gnssConfigRequested.aGlonassPositionProtocolMask);
                 if (newAGloProtMask != ContextBase::mGps_conf.A_GLONASS_POS_PROTOCOL_SELECT &&
@@ -884,25 +883,25 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                     gnssConfigNeedEngineUpdate.flags &=
                             ~(GNSS_CONFIG_FLAGS_AGLONASS_POSITION_PROTOCOL_VALID_BIT);
                 }
+                index++;
              }
              if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_EM_PDN_FOR_EM_SUPL_VALID_BIT) {
-                index++;
                 uint32_t newEP4ES = mAdapter.convertEP4ES(
                         gnssConfigRequested.emergencyPdnForEmergencySupl);
                 if (newEP4ES != ContextBase::mGps_conf.USE_EMERGENCY_PDN_FOR_EMERGENCY_SUPL) {
                     ContextBase::mGps_conf.USE_EMERGENCY_PDN_FOR_EMERGENCY_SUPL = newEP4ES;
                 }
+                index++;
              }
              if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_SUPL_EM_SERVICES_BIT) {
-                index++;
                 uint32_t newSuplEs = mAdapter.convertSuplEs(
                         gnssConfigRequested.suplEmergencyServices);
                 if (newSuplEs != ContextBase::mGps_conf.SUPL_ES) {
                     ContextBase::mGps_conf.SUPL_ES = newSuplEs;
                 }
+                index++;
              }
              if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_SUPL_MODE_BIT) {
-                index++;
                 uint32_t newSuplMode = mAdapter.convertSuplMode(gnssConfigRequested.suplModeMask);
                 if (newSuplMode != ContextBase::mGps_conf.SUPL_MODE) {
                     ContextBase::mGps_conf.SUPL_MODE = newSuplMode;
@@ -910,6 +909,7 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                         ContextBase::getCarrierCapabilities());
                     mAdapter.broadcastCapabilities(mAdapter.getCapabilities());
                 }
+                index++;
             }
 
             LocApiCollectiveResponse *configCollectiveResponse = new LocApiCollectiveResponse(
@@ -938,10 +938,10 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                             errsList[index] = err;
                         }
                     }
+                    index++;
                 }
                 if (gnssConfigRequested.flags &
                         GNSS_CONFIG_FLAGS_SET_ASSISTANCE_DATA_VALID_BIT) {
-                    index++;
                     if (gnssConfigNeedEngineUpdate.flags &
                             GNSS_CONFIG_FLAGS_SET_ASSISTANCE_DATA_VALID_BIT) {
                         if (gnssConfigNeedEngineUpdate.assistanceServer.type ==
@@ -949,7 +949,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                             if ((serverUrlLen != 0) && (oldServerUrl.compare(serverUrl) !=0)) {
                                 err = adapter.mLocApi->setServerSync(
                                         serverUrl.c_str(), serverUrlLen);
-                                errsList[index] = err;
+                                if (index < countOfConfigs) {
+                                    errsList[index] = err;
+                                }
                             }
                         } else if (gnssConfigNeedEngineUpdate.assistanceServer.type ==
                                 GNSS_ASSISTANCE_TYPE_C2K) {
@@ -970,7 +972,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                                         LOC_LOGE("%s]: hostname '%s' cannot be resolved ",
                                                 __func__,
                                                 gnssConfigNeedEngineUpdate.assistanceServer.hostName);
-                                        errsList[index] = LOCATION_ERROR_INVALID_PARAMETER;
+                                        if (index < countOfConfigs) {
+                                            errsList[index] = LOCATION_ERROR_INVALID_PARAMETER;
+                                        }
                                     } else {
                                         resolveAddrSuccess = false;
                                     }
@@ -981,13 +985,15 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                                     err = adapter.mLocApi->setServerSync(ip,
                                             gnssConfigNeedEngineUpdate.assistanceServer.port,
                                             LOC_AGPS_CDMA_PDE_SERVER);
-                                    errsList[index] = err;
+                                    if (index < countOfConfigs) {
+                                        errsList[index] = err;
+                                    }
                                 }
                         }
                     }
+                    index++;
                 }
                 if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_SUPL_VERSION_VALID_BIT) {
-                    index++;
                     if (gnssConfigNeedEngineUpdate.flags &
                             GNSS_CONFIG_FLAGS_SUPL_VERSION_VALID_BIT) {
                         err = adapter.mLocApi->setSUPLVersionSync(gnssConfigRequested.suplVersion);
@@ -995,9 +1001,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                             errsList[index] = err;
                         }
                     }
+                    index++;
                 }
                 if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_LPP_PROFILE_VALID_BIT) {
-                    index++;
                     if (gnssConfigNeedEngineUpdate.flags &
                             GNSS_CONFIG_FLAGS_LPP_PROFILE_VALID_BIT) {
                         err = adapter.mLocApi->setLPPConfigSync(gnssConfigRequested.lppProfile);
@@ -1005,9 +1011,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                             errsList[index] = err;
                         }
                     }
+                    index++;
                 }
                 if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_LPPE_CONTROL_PLANE_VALID_BIT) {
-                    index++;
                     if (gnssConfigNeedEngineUpdate.flags &
                             GNSS_CONFIG_FLAGS_LPPE_CONTROL_PLANE_VALID_BIT) {
                         err = adapter.mLocApi->setLPPeProtocolCpSync(
@@ -1016,9 +1022,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                             errsList[index] = err;
                         }
                     }
+                    index++;
                 }
                 if (gnssConfigRequested.flags & GNSS_CONFIG_FLAGS_LPPE_USER_PLANE_VALID_BIT) {
-                    index++;
                     if (gnssConfigNeedEngineUpdate.flags &
                             GNSS_CONFIG_FLAGS_LPPE_USER_PLANE_VALID_BIT) {
                         err = adapter.mLocApi->setLPPeProtocolUpSync(
@@ -1027,10 +1033,10 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                             errsList[index] = err;
                         }
                     }
+                    index++;
                 }
                 if (gnssConfigRequested.flags &
                         GNSS_CONFIG_FLAGS_AGLONASS_POSITION_PROTOCOL_VALID_BIT) {
-                    index++;
                     if (gnssConfigNeedEngineUpdate.flags &
                             GNSS_CONFIG_FLAGS_AGLONASS_POSITION_PROTOCOL_VALID_BIT) {
                         err = adapter.mLocApi->setAGLONASSProtocolSync(
@@ -1039,6 +1045,7 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                             errsList[index] = err;
                         }
                     }
+                    index++;
                 }
                 configCollectiveResponse->returnToSender(errsList);
             }));
