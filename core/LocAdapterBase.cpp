@@ -88,9 +88,7 @@ void LocAdapterBase::
         mLocAdapterProxyBase->reportPositionEvent((UlpLocation&)location,
                                                    (GpsLocationExtended&)locationExtended,
                                                    status,
-                                                   loc_technology_mask,
-                                                   pDataNotify,
-                                                   msInWeek);
+                                                   loc_technology_mask);
     } else {
         DEFAULT_IMPL()
     }
