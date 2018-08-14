@@ -627,6 +627,15 @@ GnssAdapter::setSuplHostServer(const char* server, int port, LocServerType type)
             string& url = (LOC_AGPS_SUPL_SERVER == type) ? getServerUrl() : getMoServerUrl();
             if (length > 0 && strncasecmp(url.c_str(), serverUrl, sizeof(serverUrl)) != 0) {
                 url.assign(serverUrl);
+
+                if (LOC_AGPS_SUPL_SERVER == type) {
+                    int nCharsToCopy = strlen(server) < MAX_SUPL_SERVER_URL_LENGTH ?
+                            strlen(server) : (MAX_SUPL_SERVER_URL_LENGTH - 1);
+                    strncpy(ContextBase::mGps_conf.SUPL_HOST, server, nCharsToCopy);
+                    ContextBase::mGps_conf.SUPL_HOST[nCharsToCopy] = '\0';
+                    ContextBase::mGps_conf.SUPL_PORT = port;
+                }
+
                 LOC_LOGv("serverUrl=%s length=%d type=%d", serverUrl, length, type);
             }
         }
@@ -2863,7 +2872,12 @@ GnssAdapter::needReport(const UlpLocation& ulpLocation,
                         enum loc_sess_status status,
                         LocPosTechMask techMask) {
     bool reported = false;
-    if (LOC_SESS_SUCCESS == status) {
+
+    // if engine hub is enabled, aka, any of the engine services is enabled,
+    // then always output position reported by engine hub to requesting client
+    if (true == initEngHubProxy()) {
+        reported = true;
+    } else if (LOC_SESS_SUCCESS == status) {
         // this is a final fix
         LocPosTechMask mask =
                 LOC_POS_TECH_MASK_SATELLITE | LOC_POS_TECH_MASK_SENSORS | LOC_POS_TECH_MASK_HYBRID;
