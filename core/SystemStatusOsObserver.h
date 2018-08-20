@@ -57,8 +57,8 @@ class SystemStatusOsObserver;
 typedef map<IDataItemObserver*, list<DataItemId>> ObserverReqCache;
 typedef LocUnorderedSetMap<IDataItemObserver*, DataItemId> ClientToDataItems;
 typedef LocUnorderedSetMap<DataItemId, IDataItemObserver*> DataItemToClients;
-typedef unordered_map<DataItemId, IDataItemCore*> DataItemIdToCore;
-typedef unordered_map<DataItemId, int> DataItemIdToInt;
+typedef map<DataItemId, IDataItemCore*> DataItemIdToCore;
+typedef map<DataItemId, int> DataItemIdToInt;
 
 struct ObserverContext {
     IDataItemSubscription* mSubscriptionObj;
@@ -158,9 +158,9 @@ private:
     void subscribe(const list<DataItemId>& l, IDataItemObserver* client, bool toRequestData);
 
     // Helpers
-    void sendCachedDataItems(const unordered_set<DataItemId>& s, IDataItemObserver* to);
+    void sendCachedDataItems(const set<DataItemId>& s, IDataItemObserver* to);
     bool updateCache(IDataItemCore* d);
-    inline void logMe(const unordered_set<DataItemId>& l) {
+    inline void logMe(const set<DataItemId>& l) {
         IF_LOC_LOGD {
             for (auto id : l) {
                 LOC_LOGD("DataItem %d", id);
