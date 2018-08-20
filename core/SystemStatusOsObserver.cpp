@@ -38,7 +38,7 @@ namespace loc_core
 {
 template <typename CINT, typename COUT>
 COUT SystemStatusOsObserver::containerTransfer(CINT& inContainer) {
-    COUT outContainer(0);
+    COUT outContainer;
     for (auto item : inContainer) {
         outContainer.insert(outContainer.begin(), item);
     }
@@ -71,7 +71,7 @@ void SystemStatusOsObserver::setSubscriptionObj(IDataItemSubscription* subscript
 
             if (!mContext.mSSObserver->mDataItemToClients.empty()) {
                 list<DataItemId> dis(
-                        containerTransfer<unordered_set<DataItemId>, list<DataItemId>>(
+                        containerTransfer<set<DataItemId>, list<DataItemId>>(
                                 mContext.mSSObserver->mDataItemToClients.getKeys()));
                 mContext.mSubscriptionObj->subscribe(dis, mContext.mSSObserver);
                 mContext.mSubscriptionObj->requestData(dis, mContext.mSSObserver);
@@ -96,11 +96,11 @@ void SystemStatusOsObserver::subscribe(const list<DataItemId>& l, IDataItemObser
         inline HandleSubscribeReq(SystemStatusOsObserver* parent,
                 list<DataItemId>& l, IDataItemObserver* client, bool requestData) :
                 mParent(parent), mClient(client),
-                mDataItemSet(containerTransfer<list<DataItemId>, unordered_set<DataItemId>>(l)),
+                mDataItemSet(containerTransfer<list<DataItemId>, set<DataItemId>>(l)),
                 mToRequestData(requestData) {}
 
         void proc() const {
-            unordered_set<DataItemId> dataItemsToSubscribe(0);
+            set<DataItemId> dataItemsToSubscribe;
             mParent->mDataItemToClients.add(mDataItemSet, {mClient}, &dataItemsToSubscribe);
             mParent->mClientToDataItems.add(mClient, mDataItemSet);
 
@@ -113,12 +113,12 @@ void SystemStatusOsObserver::subscribe(const list<DataItemId>& l, IDataItemObser
 
                 if (mToRequestData) {
                     mParent->mContext.mSubscriptionObj->requestData(
-                            containerTransfer<unordered_set<DataItemId>, list<DataItemId>>(
+                            containerTransfer<set<DataItemId>, list<DataItemId>>(
                                     std::move(dataItemsToSubscribe)),
                             mParent);
                 } else {
                     mParent->mContext.mSubscriptionObj->subscribe(
-                            containerTransfer<unordered_set<DataItemId>, list<DataItemId>>(
+                            containerTransfer<set<DataItemId>, list<DataItemId>>(
                                     std::move(dataItemsToSubscribe)),
                             mParent);
                 }
@@ -126,7 +126,7 @@ void SystemStatusOsObserver::subscribe(const list<DataItemId>& l, IDataItemObser
         }
         mutable SystemStatusOsObserver* mParent;
         IDataItemObserver* mClient;
-        const unordered_set<DataItemId> mDataItemSet;
+        const set<DataItemId> mDataItemSet;
         bool mToRequestData;
     };
 
@@ -145,12 +145,12 @@ void SystemStatusOsObserver::updateSubscription(
         HandleUpdateSubscriptionReq(SystemStatusOsObserver* parent,
                                     list<DataItemId>& l, IDataItemObserver* client) :
                 mParent(parent), mClient(client),
-                mDataItemSet(containerTransfer<list<DataItemId>, unordered_set<DataItemId>>(l)) {}
+                mDataItemSet(containerTransfer<list<DataItemId>, set<DataItemId>>(l)) {}
 
         void proc() const {
-            unordered_set<DataItemId> dataItemsToSubscribe(0);
-            unordered_set<DataItemId> dataItemsToUnsubscribe(0);
-            unordered_set<IDataItemObserver*> clients({mClient});
+            set<DataItemId> dataItemsToSubscribe;
+            set<DataItemId> dataItemsToUnsubscribe;
+            set<IDataItemObserver*> clients({mClient});
             // below removes clients from all entries keyed with the return of the
             // mClientToDataItems.update() call. If leaving an empty set of clients as the
             // result, the entire entry will be removed. dataItemsToUnsubscribe will be
@@ -164,7 +164,7 @@ void SystemStatusOsObserver::updateSubscription(
                     // corresponding entries, and gets a set of the entries that are
                     // removed from the <DataItemId, IDataItemObserver*> map as a result.
                     mParent->mClientToDataItems.update(mClient,
-                                                       (unordered_set<DataItemId>&)mDataItemSet),
+                                                       (set<DataItemId>&)mDataItemSet),
                     clients, &dataItemsToUnsubscribe, nullptr);
             // below adds mClient to <DataItemId, IDataItemObserver*> map, and populates
             // new keys added to that map, which are DataItemIds to be subscribed.
@@ -180,7 +180,7 @@ void SystemStatusOsObserver::updateSubscription(
                     mParent->logMe(dataItemsToSubscribe);
 
                     mParent->mContext.mSubscriptionObj->subscribe(
-                            containerTransfer<unordered_set<DataItemId>, list<DataItemId>>(
+                            containerTransfer<set<DataItemId>, list<DataItemId>>(
                                     std::move(dataItemsToSubscribe)),
                             mParent);
                 }
@@ -191,7 +191,7 @@ void SystemStatusOsObserver::updateSubscription(
                     mParent->logMe(dataItemsToUnsubscribe);
 
                     mParent->mContext.mSubscriptionObj->unsubscribe(
-                            containerTransfer<unordered_set<DataItemId>, list<DataItemId>>(
+                            containerTransfer<set<DataItemId>, list<DataItemId>>(
                                     std::move(dataItemsToUnsubscribe)),
                             mParent);
                 }
@@ -199,7 +199,7 @@ void SystemStatusOsObserver::updateSubscription(
         }
         SystemStatusOsObserver* mParent;
         IDataItemObserver* mClient;
-        unordered_set<DataItemId> mDataItemSet;
+        set<DataItemId> mDataItemSet;
     };
 
     if (l.empty() || nullptr == client) {
@@ -217,14 +217,14 @@ void SystemStatusOsObserver::unsubscribe(
         HandleUnsubscribeReq(SystemStatusOsObserver* parent,
                 list<DataItemId>& l, IDataItemObserver* client) :
                 mParent(parent), mClient(client),
-                mDataItemSet(containerTransfer<list<DataItemId>, unordered_set<DataItemId>>(l)) {}
+                mDataItemSet(containerTransfer<list<DataItemId>, set<DataItemId>>(l)) {}
 
         void proc() const {
-            unordered_set<DataItemId> dataItemsUnusedByClient(0);
-            unordered_set<IDataItemObserver*> clientToRemove(0);
+            set<DataItemId> dataItemsUnusedByClient;
+            set<IDataItemObserver*> clientToRemove;
             mParent->mClientToDataItems.trimOrRemove({mClient}, mDataItemSet,  &clientToRemove,
                                                      &dataItemsUnusedByClient);
-            unordered_set<DataItemId> dataItemsToUnsubscribe(0);
+            set<DataItemId> dataItemsToUnsubscribe;
             mParent->mDataItemToClients.trimOrRemove(dataItemsUnusedByClient, {mClient},
                                                      &dataItemsToUnsubscribe, nullptr);
 
@@ -234,14 +234,14 @@ void SystemStatusOsObserver::unsubscribe(
 
                 // Send unsubscribe to framework
                 mParent->mContext.mSubscriptionObj->unsubscribe(
-                        containerTransfer<unordered_set<DataItemId>, list<DataItemId>>(
+                        containerTransfer<set<DataItemId>, list<DataItemId>>(
                                   std::move(dataItemsToUnsubscribe)),
                         mParent);
             }
         }
         SystemStatusOsObserver* mParent;
         IDataItemObserver* mClient;
-        unordered_set<DataItemId> mDataItemSet;
+        set<DataItemId> mDataItemSet;
     };
 
     if (l.empty() || nullptr == client) {
@@ -259,9 +259,9 @@ void SystemStatusOsObserver::unsubscribeAll(IDataItemObserver* client)
                 mParent(parent), mClient(client) {}
 
         void proc() const {
-            unordered_set<DataItemId> diByClient = mParent->mClientToDataItems.getValSet(mClient);
+            set<DataItemId> diByClient = mParent->mClientToDataItems.getValSet(mClient);
             if (!diByClient.empty()) {
-                unordered_set<DataItemId> dataItemsToUnsubscribe;
+                set<DataItemId> dataItemsToUnsubscribe;
                 mParent->mClientToDataItems.remove(mClient);
                 mParent->mDataItemToClients.trimOrRemove(diByClient, {mClient},
                                                          &dataItemsToUnsubscribe, nullptr);
@@ -274,7 +274,7 @@ void SystemStatusOsObserver::unsubscribeAll(IDataItemObserver* client)
 
                     // Send unsubscribe to framework
                     mParent->mContext.mSubscriptionObj->unsubscribe(
-                            containerTransfer<unordered_set<DataItemId>, list<DataItemId>>(
+                            containerTransfer<set<DataItemId>, list<DataItemId>>(
                                     std::move(dataItemsToUnsubscribe)),
                             mParent);
                 }
@@ -309,7 +309,7 @@ void SystemStatusOsObserver::notify(const list<IDataItemCore*>& dlist)
         void proc() const {
             // Update Cache with received data items and prepare
             // list of data items to be sent.
-            unordered_set<DataItemId> dataItemIdsToBeSent(0);
+            set<DataItemId> dataItemIdsToBeSent;
             for (auto item : mDiVec) {
                 if (mParent->updateCache(item)) {
                     dataItemIdsToBeSent.insert(item->getId());
@@ -317,7 +317,7 @@ void SystemStatusOsObserver::notify(const list<IDataItemCore*>& dlist)
             }
 
             // Send data item to all subscribed clients
-            unordered_set<IDataItemObserver*> clientSet(0);
+            set<IDataItemObserver*> clientSet;
             for (auto each : dataItemIdsToBeSent) {
                 auto clients = mParent->mDataItemToClients.getValSetPtr(each);
                 if (nullptr != clients) {
@@ -326,7 +326,7 @@ void SystemStatusOsObserver::notify(const list<IDataItemCore*>& dlist)
             }
 
             for (auto client : clientSet) {
-                unordered_set<DataItemId> dataItemIdsForThisClient(
+                set<DataItemId> dataItemIdsForThisClient(
                         mParent->mClientToDataItems.getValSet(client));
                 for (auto id : dataItemIdsForThisClient) {
                     if (dataItemIdsToBeSent.find(id) == dataItemIdsToBeSent.end()) {
@@ -508,7 +508,7 @@ bool SystemStatusOsObserver::disconnectBackhaul()
  Helpers
 ******************************************************************************/
 void SystemStatusOsObserver::sendCachedDataItems(
-        const unordered_set<DataItemId>& s, IDataItemObserver* to)
+        const set<DataItemId>& s, IDataItemObserver* to)
 {
     if (nullptr == to) {
         LOC_LOGv("client pointer is NULL.");
