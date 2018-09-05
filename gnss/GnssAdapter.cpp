@@ -2194,6 +2194,7 @@ GnssAdapter::reportPositionEvent(const UlpLocation& ulpLocation,
             mStatus(status),
             mTechMask(techMask),
             mMsInWeek(msInWeek) {
+                memset(&mDataNotify, 0, sizeof(mDataNotify));
                 if (pDataNotify != nullptr) {
                     mDataNotify = *pDataNotify;
                     mbIsDataValid = true;
