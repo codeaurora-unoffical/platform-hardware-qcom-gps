@@ -67,6 +67,10 @@ typedef struct loc_gps_cfg_s
     uint32_t       EXTERNAL_DR_ENABLED;
     char           SUPL_HOST[MAX_SUPL_SERVER_URL_LENGTH];
     uint32_t       SUPL_PORT;
+    uint32_t       CONSTRAINED_TIME_UNCERTAINTY_ENABLED;
+    double         CONSTRAINED_TIME_UNCERTAINTY_THRESHOLD;
+    uint32_t       CONSTRAINED_TIME_UNCERTAINTY_ENERGY_BUDGET;
+    uint32_t       POSITION_ASSISTED_CLOCK_ESTIMATOR_ENABLED;
 } loc_gps_cfg_s_type;
 
 /* NOTE: the implementaiton of the parser casts number

@@ -61,6 +61,7 @@ static void agpsDataConnClosed(AGpsExtType agpsType);
 static void agpsDataConnFailed(AGpsExtType agpsType);
 static void getDebugReport(GnssDebugReport& report);
 static void updateConnectionStatus(bool connected, int8_t type);
+static void getGnssEnergyConsumed(GnssEnergyConsumedCallback energyConsumedCb);
 
 static const GnssInterface gGnssInterface = {
     sizeof(GnssInterface),
@@ -87,6 +88,7 @@ static const GnssInterface gGnssInterface = {
     agpsDataConnFailed,
     getDebugReport,
     updateConnectionStatus,
+    getGnssEnergyConsumed
 };
 
 #ifndef DEBUG_X86
@@ -263,5 +265,11 @@ static void getDebugReport(GnssDebugReport& report) {
 static void updateConnectionStatus(bool connected, int8_t type) {
     if (NULL != gGnssAdapter) {
         gGnssAdapter->getSystemStatus()->eventConnectionStatus(connected, type);
+    }
+}
+
+static void getGnssEnergyConsumed(GnssEnergyConsumedCallback energyConsumedCb) {
+    if (NULL != gGnssAdapter) {
+        gGnssAdapter->getGnssEnergyConsumedCommand(energyConsumedCb);
     }
 }

@@ -315,6 +315,12 @@ void LocApiBase::reportZppBestAvailableFix(LocGpsLocation &zppLoc,
             location_extended, tech_mask));
 }
 
+void LocApiBase::reportGnssEngEnergyConsumedEvent(uint64_t energyConsumedSinceFirstBoot)
+{
+    // loop through adapters, and deliver to the first handling adapter.
+    TO_ALL_LOCADAPTERS(mLocAdapters[i]->reportGnssEngEnergyConsumedEvent(
+            energyConsumedSinceFirstBoot));
+}
 
 void LocApiBase::reportSv(GnssSvNotification& svNotify)
 {
@@ -479,6 +485,10 @@ void LocApiBase::
 DEFAULT_IMPL()
 
 void LocApiBase::
+    injectPosition(const GnssLocationInfoNotification & /*locationInfo*/, bool /*onDemandCpi*/)
+DEFAULT_IMPL()
+
+void LocApiBase::
     setTime(LocGpsUtcTime /*time*/, int64_t /*timeReference*/, int /*uncertainty*/)
 DEFAULT_IMPL()
 
@@ -624,4 +634,17 @@ LocationError LocApiBase::
     setXtraVersionCheckSync(uint32_t /*check*/)
 DEFAULT_IMPL(LOCATION_ERROR_SUCCESS)
 
+LocationError LocApiBase::
+    setConstrainedTuncMode(bool /*enabled*/,
+                           float /*tuncConstraint*/,
+                           uint32_t /*energyBudget*/)
+DEFAULT_IMPL(LOCATION_ERROR_SUCCESS)
+
+LocationError LocApiBase::
+    setPositionAssistedClockEstimatorMode(bool /*enabled*/)
+DEFAULT_IMPL(LOCATION_ERROR_SUCCESS)
+
+LocationError LocApiBase::
+    getGnssEnergyConsumed()
+DEFAULT_IMPL(LOCATION_ERROR_SUCCESS)
 } // namespace loc_core

@@ -176,5 +176,8 @@ bool LocAdapterBase::
             GpsLocationExtended& /*location_extended*/, LocPosTechMask /*tech_mask*/)
 DEFAULT_IMPL(false)
 
+bool LocAdapterBase::
+    reportGnssEngEnergyConsumedEvent(uint64_t /*energyConsumedSinceFirstBoot*/)
+DEFAULT_IMPL(false)
 
 } // namespace loc_core

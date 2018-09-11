@@ -161,6 +161,7 @@ public:
     void reportWwanZppFix(LocGpsLocation &zppLoc);
     void reportZppBestAvailableFix(LocGpsLocation &zppLoc, GpsLocationExtended &location_extended,
             LocPosTechMask tech_mask);
+    void reportGnssEngEnergyConsumedEvent(uint64_t energyConsumedSinceFirstBoot);
 
     // downward calls
     // All below functions are to be defined by adapter specific modules:
@@ -176,6 +177,10 @@ public:
 
     virtual void
         injectPosition(double latitude, double longitude, float accuracy);
+
+    virtual void
+        injectPosition(const GnssLocationInfoNotification &locationInfo, bool onDemandCpi=false);
+
     virtual void
         setTime(LocGpsUtcTime time, int64_t timeReference, int uncertainty);
 
@@ -264,6 +269,13 @@ public:
     virtual int getGpsLock(void);
 
     virtual LocationError setXtraVersionCheckSync(uint32_t check);
+
+    virtual LocationError setConstrainedTuncMode(bool enabled,
+                                                 float tuncConstraint,
+                                                 uint32_t energyBudget);
+    virtual LocationError setPositionAssistedClockEstimatorMode(bool enabled);
+    virtual LocationError getGnssEnergyConsumed();
+
 };
 
 typedef LocApiBase* (getLocApi_t)(LOC_API_ADAPTER_EVENT_MASK_T exMask,

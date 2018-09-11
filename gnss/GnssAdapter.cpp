@@ -616,7 +616,7 @@ GnssAdapter::setSuplHostServer(const char* server, int port)
 
         if ((NULL == server) || (server[0] == 0) ||
                 (strncasecmp(noHost, server, sizeof(noHost)) == 0)) {
-            serverUrl[0] = NULL;
+            serverUrl[0] = '\0';
             length = 0;
         } else if (port > 0) {
             length = snprintf(serverUrl, sizeof(serverUrl), "%s:%u", server, port);
@@ -707,6 +707,14 @@ GnssAdapter::setConfigCommand()
                 }
 
                 adapter.mLocApi->setXtraVersionCheckSync(gpsConf.XTRA_VERSION_CHECK);
+
+                adapter.mLocApi->setConstrainedTuncMode(
+                        gpsConf.CONSTRAINED_TIME_UNCERTAINTY_ENABLED == 1,
+                        (float)gpsConf.CONSTRAINED_TIME_UNCERTAINTY_THRESHOLD,
+                        gpsConf.CONSTRAINED_TIME_UNCERTAINTY_ENERGY_BUDGET);
+                adapter.mLocApi->setPositionAssistedClockEstimatorMode(
+                        gpsConf.POSITION_ASSISTED_CLOCK_ESTIMATOR_ENABLED == 1);
+
                 if (sapConf.GYRO_BIAS_RANDOM_WALK_VALID ||
                     sapConf.ACCEL_RANDOM_WALK_SPECTRAL_DENSITY_VALID ||
                     sapConf.ANGLE_RANDOM_WALK_SPECTRAL_DENSITY_VALID ||
@@ -2387,17 +2395,24 @@ GnssAdapter::reportPosition(const UlpLocation& ulpLocation,
             mGnssSvIdUsedInPosAvail = true;
             mGnssSvIdUsedInPosition = locationExtended.gnss_sv_used_ids;
         }
+
+        GnssLocationInfoNotification locationInfo = {};
+        convertLocationInfo(locationInfo, locationExtended);
+        convertLocation(locationInfo.location, ulpLocation, locationExtended, techMask);
+
         for (auto it=mClientData.begin(); it != mClientData.end(); ++it) {
             if (nullptr != it->second.gnssLocationInfoCb) {
-                GnssLocationInfoNotification locationInfo = {};
-                convertLocationInfo(locationInfo, locationExtended);
-                convertLocation(locationInfo.location, ulpLocation, locationExtended, techMask);
                 it->second.gnssLocationInfoCb(locationInfo);
             } else if (nullptr != it->second.trackingCb) {
-                Location location = {};
-                convertLocation(location, ulpLocation, locationExtended, techMask);
-                it->second.trackingCb(location);
+                it->second.trackingCb(locationInfo.location);
             }
+        }
+
+        // if engine hub is running and the fix is from sensor, e.g.: DRE,
+        // inject DRE fix to modem
+        if ((1 == ContextBase::mGps_conf.POSITION_ASSISTED_CLOCK_ESTIMATOR_ENABLED) &&
+                (true == initEngHubProxy()) && (LOC_POS_TECH_MASK_SENSORS & techMask)) {
+            mLocApi->injectPosition(locationInfo, false);
         }
     }
 
@@ -2861,6 +2876,35 @@ GnssAdapter::reportSvPolynomialEvent(GnssSvPolynomial &svPolynomial)
     mUlpProxy->reportSvPolynomial(svPolynomial);
 
     mEngHubProxy->gnssReportSvPolynomial(svPolynomial);
+}
+
+void
+GnssAdapter::invokeGnssEnergyConsumedCallback(uint64_t energyConsumedSinceFirstBoot) {
+    if (mGnssEnergyConsumedCb) {
+        mGnssEnergyConsumedCb(energyConsumedSinceFirstBoot);
+        mGnssEnergyConsumedCb = nullptr;
+    }
+}
+
+bool
+GnssAdapter::reportGnssEngEnergyConsumedEvent(uint64_t energyConsumedSinceFirstBoot){
+    LOC_LOGD("%s]: %" PRIu64 " ", __func__, energyConsumedSinceFirstBoot);
+
+    struct MsgReportGnssGnssEngEnergyConsumed : public LocMsg {
+        GnssAdapter& mAdapter;
+        uint64_t mGnssEnergyConsumedSinceFirstBoot;
+        inline MsgReportGnssGnssEngEnergyConsumed(GnssAdapter& adapter,
+                                                  uint64_t energyConsumed) :
+                LocMsg(),
+                mAdapter(adapter),
+                mGnssEnergyConsumedSinceFirstBoot(energyConsumed) {}
+        inline virtual void proc() const {
+            mAdapter.invokeGnssEnergyConsumedCallback(mGnssEnergyConsumedSinceFirstBoot);
+        }
+    };
+
+    sendMsg(new MsgReportGnssGnssEngEnergyConsumed(*this, energyConsumedSinceFirstBoot));
+    return true;
 }
 
 void GnssAdapter::initDefaultAgps() {
@@ -3611,6 +3655,32 @@ static void agpsCloseResultCb (bool isSuccess, AGpsExtType agpsType, void* userD
     } else {
         adapter->dataConnFailedCommand(agpsType);
     }
+}
+
+void
+GnssAdapter::saveGnssEnergyConsumedCallback(GnssEnergyConsumedCallback energyConsumedCb) {
+    mGnssEnergyConsumedCb = energyConsumedCb;
+}
+
+void
+GnssAdapter::getGnssEnergyConsumedCommand(GnssEnergyConsumedCallback energyConsumedCb) {
+    struct MsgGetGnssEnergyConsumed : public LocMsg {
+        GnssAdapter& mAdapter;
+        LocApiBase& mApi;
+        GnssEnergyConsumedCallback mEnergyConsumedCb;
+        inline MsgGetGnssEnergyConsumed(GnssAdapter& adapter, LocApiBase& api,
+                                        GnssEnergyConsumedCallback energyConsumedCb) :
+            LocMsg(),
+            mAdapter(adapter),
+            mApi(api),
+            mEnergyConsumedCb(energyConsumedCb){}
+        inline virtual void proc() const {
+            mAdapter.saveGnssEnergyConsumedCallback(mEnergyConsumedCb);
+            mApi.getGnssEnergyConsumed();
+        }
+    };
+
+    sendMsg(new MsgGetGnssEnergyConsumed(*this, *mLocApi, energyConsumedCb));
 }
 
 /* ==== Eng Hub Proxy ================================================================= */
