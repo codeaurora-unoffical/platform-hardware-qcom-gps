@@ -79,7 +79,8 @@ GnssAdapter::GnssAdapter() :
     mAgpsCbInfo(),
     mSystemStatus(SystemStatus::getInstance(mMsgTask)),
     mServerUrl(":"),
-    mXtraObserver(mSystemStatus->getOsObserver(), mMsgTask)
+    mXtraObserver(mSystemStatus->getOsObserver(), mMsgTask),
+    mLocSystemInfo{}
 {
     LOC_LOGD("%s]: Constructor %p", __func__, this);
     mUlpPositionMode.mode = LOC_POSITION_MODE_INVALID;
@@ -1262,6 +1263,8 @@ GnssAdapter::addClientCommand(LocationAPI* client, const LocationCallbacks& call
             mClient(client),
             mCallbacks(callbacks) {}
         inline virtual void proc() const {
+            // check whether we need to notify client of cached location system info
+            mAdapter.notifyClientOfCachedLocationSystemInfo(mClient, mCallbacks);
             mAdapter.saveClient(mClient, mCallbacks);
         }
     };
@@ -1331,6 +1334,9 @@ GnssAdapter::updateClientsEventMask()
             mask |= LOC_API_ADAPTER_BIT_NMEA_1HZ_REPORT;
             updateNmeaMask(mNmeaMask | LOC_NMEA_MASK_DEBUG_V02);
         }
+        if (it->second.locationSystemInfoCb != nullptr) {
+            mask |= LOC_API_ADAPTER_BIT_LOC_SYSTEM_INFO;
+        }
     }
 
     /*
@@ -1344,6 +1350,7 @@ GnssAdapter::updateClientsEventMask()
         mask |= LOC_API_ADAPTER_BIT_GNSS_MEASUREMENT;
         mask |= LOC_API_ADAPTER_BIT_GNSS_SV_POLYNOMIAL_REPORT;
         mask |= LOC_API_ADAPTER_BIT_PARSED_UNPROPAGATED_POSITION_REPORT;
+        mask |= LOC_API_ADAPTER_BIT_LOC_SYSTEM_INFO;
 
         LOC_LOGD("%s]: Auto usecase, Enable MEAS/POLY - mask 0x%x", __func__, mask);
     }
@@ -1493,6 +1500,35 @@ GnssAdapter::saveClient(LocationAPI* client, const LocationCallbacks& callbacks)
 {
     mClientData[client] = callbacks;
     updateClientsEventMask();
+}
+
+void
+GnssAdapter::notifyClientOfCachedLocationSystemInfo(
+        LocationAPI* client, const LocationCallbacks& callbacks) {
+
+    if (mLocSystemInfo.systemInfoMask) {
+        // client need to be notified if client has not yet previously registered
+        // for the info but now register for it.
+        bool notifyClientOfSystemInfo = false;
+        // check whether we need to notify client of cached location system info
+        //
+        // client need to be notified if client has not yet previously registered
+        // for the info but now register for it.
+        if (callbacks.locationSystemInfoCb) {
+            notifyClientOfSystemInfo = true;
+            auto it = mClientData.find(client);
+            if (it != mClientData.end()) {
+                LocationCallbacks oldCallbacks = it->second;
+                if (oldCallbacks.locationSystemInfoCb) {
+                    notifyClientOfSystemInfo = false;
+                }
+            }
+        }
+
+        if (notifyClientOfSystemInfo) {
+            callbacks.locationSystemInfoCb(mLocSystemInfo);
+        }
+    }
 }
 
 void
@@ -2692,6 +2728,47 @@ GnssAdapter::requestNiNotifyEvent(const GnssNiNotification &notify, const void* 
     sendMsg(new MsgReportNiNotify(*this, notify, data));
 
     return true;
+}
+
+void
+GnssAdapter::reportLocationSystemInfoEvent(const LocationSystemInfo & locationSystemInfo) {
+
+    // send system info to engine hub
+    mEngHubProxy->gnssReportSystemInfo(locationSystemInfo);
+
+    struct MsgLocationSystemInfo : public LocMsg {
+        GnssAdapter& mAdapter;
+        LocationSystemInfo mSystemInfo;
+        inline MsgLocationSystemInfo(GnssAdapter& adapter,
+            const LocationSystemInfo& systemInfo) :
+            LocMsg(),
+            mAdapter(adapter),
+            mSystemInfo(systemInfo) {}
+        inline virtual void proc() const {
+            mAdapter.reportLocationSystemInfo(mSystemInfo);
+        }
+    };
+
+    sendMsg(new MsgLocationSystemInfo(*this, locationSystemInfo));
+}
+
+void
+GnssAdapter::reportLocationSystemInfo(const LocationSystemInfo & locationSystemInfo) {
+    // save the info into the master copy piece by piece, as other system info
+    // may come at different time
+    if (locationSystemInfo.systemInfoMask & LOCATION_SYS_INFO_LEAP_SECOND) {
+        mLocSystemInfo.systemInfoMask |= LOCATION_SYS_INFO_LEAP_SECOND;
+        mLocSystemInfo.leapSecondSysInfo = locationSystemInfo.leapSecondSysInfo;
+    }
+
+    // we received new info, inform client of the newly received info
+    if (locationSystemInfo.systemInfoMask) {
+        for (auto it=mClientData.begin(); it != mClientData.end(); ++it) {
+            if (it->second.locationSystemInfoCb != nullptr) {
+                it->second.locationSystemInfoCb(locationSystemInfo);
+            }
+        }
+    }
 }
 
 static void* niThreadProc(void *args)

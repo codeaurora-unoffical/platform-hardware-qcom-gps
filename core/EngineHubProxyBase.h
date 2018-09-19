@@ -81,6 +81,11 @@ public:
         (void) svPolynomial;
         return false;
     }
+
+    inline virtual bool gnssReportSystemInfo(const LocationSystemInfo& systemInfo) {
+        (void) systemInfo;
+        return false;
+    }
 };
 
 typedef std::function<void(const UlpLocation& ulpLocation,

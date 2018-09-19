@@ -121,6 +121,7 @@ class GnssAdapter : public LocAdapterBase {
     SystemStatus* mSystemStatus;
     std::string mServerUrl;
     XtraSystemStatusObserver mXtraObserver;
+    LocationSystemInfo mLocSystemInfo;
 
     /* === Misc callback from QMI LOC API ============================================== */
     GnssEnergyConsumedCallback mGnssEnergyConsumedCb;
@@ -159,6 +160,8 @@ public:
     /* ======== UTILITIES ================================================================== */
     void saveClient(LocationAPI* client, const LocationCallbacks& callbacks);
     void eraseClient(LocationAPI* client);
+    void notifyClientOfCachedLocationSystemInfo(LocationAPI* client,
+                                                const LocationCallbacks& callbacks);
     void updateClientsEventMask();
     void stopClientSessions(LocationAPI* client);
     LocationCallbacks getClientCallbacks(LocationAPI* client);
@@ -263,6 +266,7 @@ public:
     virtual void reportSvMeasurementEvent(GnssSvMeasurementSet &svMeasurementSet);
     virtual void reportSvPolynomialEvent(GnssSvPolynomial &svPolynomial);
     virtual bool reportGnssEngEnergyConsumedEvent(uint64_t energyConsumedSinceFirstBoot);
+    virtual void reportLocationSystemInfoEvent(const LocationSystemInfo& locationSystemInfo);
 
     virtual bool requestATL(int connHandle, LocAGpsType agps_type);
     virtual bool releaseATL(int connHandle);
@@ -286,7 +290,7 @@ public:
     void reportGnssMeasurementData(const GnssMeasurementsNotification& measurements);
     void invokeGnssEnergyConsumedCallback(uint64_t energyConsumedSinceFirstBoot);
     void saveGnssEnergyConsumedCallback(GnssEnergyConsumedCallback energyConsumedCb);
-
+    void reportLocationSystemInfo(const LocationSystemInfo & locationSystemInfo);
 
     /*======== GNSSDEBUG ================================================================*/
     bool getDebugReport(GnssDebugReport& report);

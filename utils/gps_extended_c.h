@@ -759,6 +759,7 @@ enum loc_api_adapter_event_index {
     LOC_API_ADAPTER_BATCH_STATUS,                      // batch status
     LOC_API_ADAPTER_FDCL_SERVICE_REQ,                  // FDCL service request
     LOC_API_ADAPTER_REPORT_UNPROPAGATED_POSITION,      // Unpropagated Position report
+    LOC_API_ADAPTER_LOC_SYSTEM_INFO,                   // Location system info event
     LOC_API_ADAPTER_EVENT_MAX
 };
 
@@ -796,6 +797,7 @@ enum loc_api_adapter_event_index {
 #define LOC_API_ADAPTER_BIT_BATCH_STATUS                     (1<<LOC_API_ADAPTER_BATCH_STATUS)
 #define LOC_API_ADAPTER_BIT_FDCL_SERVICE_REQ                 (1ULL<<LOC_API_ADAPTER_FDCL_SERVICE_REQ)
 #define LOC_API_ADAPTER_BIT_PARSED_UNPROPAGATED_POSITION_REPORT (1ULL<<LOC_API_ADAPTER_REPORT_UNPROPAGATED_POSITION)
+#define LOC_API_ADAPTER_BIT_LOC_SYSTEM_INFO                  (1ULL<<LOC_API_ADAPTER_LOC_SYSTEM_INFO)
 
 typedef uint64_t LOC_API_ADAPTER_EVENT_MASK_T;
 

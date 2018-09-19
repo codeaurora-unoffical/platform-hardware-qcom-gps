@@ -126,6 +126,10 @@ bool LocAdapterBase::
                      const char* /*url3*/, const int /*maxlength*/)
 DEFAULT_IMPL(false)
 
+void LocAdapterBase::
+    reportLocationSystemInfoEvent(const LocationSystemInfo& /*locationSystemInfo*/)
+DEFAULT_IMPL()
+
 bool LocAdapterBase::
     requestXtraData()
 DEFAULT_IMPL(false)
