@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2014, 2016-2017 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2014, 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -92,6 +92,7 @@ protected:
         close();
     LOC_API_ADAPTER_EVENT_MASK_T getEvtMask();
     LOC_API_ADAPTER_EVENT_MASK_T mMask;
+    uint32_t mNmeaMask;
     LocApiBase(const MsgTask* msgTask,
                LOC_API_ADAPTER_EVENT_MASK_T excludedMask,
                ContextBase* context = NULL);
@@ -113,12 +114,15 @@ public:
                         GpsLocationExtended& locationExtended,
                         enum loc_sess_status status,
                         LocPosTechMask loc_technology_mask =
-                                  LOC_POS_TECH_MASK_DEFAULT);
+                                  LOC_POS_TECH_MASK_DEFAULT,
+                        GnssDataNotification* pDataNotify = nullptr,
+                        int msInWeek = -1);
     void reportSv(GnssSvNotification& svNotify);
     void reportSvMeasurement(GnssSvMeasurementSet &svMeasurementSet);
     void reportSvPolynomial(GnssSvPolynomial &svPolynomial);
     void reportStatus(LocGpsStatusValue status);
     void reportNmea(const char* nmea, int length);
+    void reportData(GnssDataNotification& dataNotify, int msInWeek);
     void reportXtraServer(const char* url1, const char* url2,
                           const char* url3, const int maxlength);
     void requestXtraData();
@@ -236,6 +240,7 @@ public:
     }
 
     void updateEvtMask();
+    void updateNmeaMask(uint32_t mask);
 
     virtual LocationError setGpsLock(GnssConfigGpsLock lock);
     /*

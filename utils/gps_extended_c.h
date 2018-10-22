@@ -57,6 +57,8 @@ extern "C" {
 /** LocGpsLocation has valid map index */
 #define LOC_GPS_LOCATION_HAS_MAP_INDEX   0x0200
 
+#define GNSS_INVALID_JAMMER_IND 0x7FFFFFFF
+
 /** Sizes for indoor fields */
 #define GPS_LOCATION_MAP_URL_SIZE 400
 #define GPS_LOCATION_MAP_INDEX_SIZE 16
@@ -268,7 +270,7 @@ typedef enum loc_position_mode_type {
 #define GPS_DEFAULT_FIX_INTERVAL_MS      1000
 
 /** Flags to indicate which values are valid in a GpsLocationExtended. */
-typedef uint32_t GpsLocationExtendedFlags;
+typedef uint64_t GpsLocationExtendedFlags;
 /** GpsLocationExtended has valid pdop, hdop, vdop. */
 #define GPS_LOCATION_EXTENDED_HAS_DOP 0x0001
 /** GpsLocationExtended has valid altitude mean sea level. */
@@ -323,14 +325,19 @@ typedef uint32_t GpsLocationExtendedFlags;
 #define GPS_LOCATION_EXTENDED_HAS_EAST_VEL_UNC   0x2000000
 /** GpsLocationExtended has up Velocity Uncertainty */
 #define GPS_LOCATION_EXTENDED_HAS_UP_VEL_UNC   0x4000000
-/** GpsLocationExtended has up Clock Bias */
+/** GpsLocationExtended has Clock Bias */
 #define GPS_LOCATION_EXTENDED_HAS_CLOCK_BIAS   0x8000000
-/** GpsLocationExtended has up Clock Bias std deviation*/
+/** GpsLocationExtended has Clock Bias std deviation*/
 #define GPS_LOCATION_EXTENDED_HAS_CLOCK_BIAS_STD_DEV   0x10000000
-/** GpsLocationExtended has up Clock drift*/
+/** GpsLocationExtended has Clock drift*/
 #define GPS_LOCATION_EXTENDED_HAS_CLOCK_DRIFT   0x20000000
-/** GpsLocationExtended has up Clock drift std deviation**/
+/** GpsLocationExtended has Clock drift std deviation**/
 #define GPS_LOCATION_EXTENDED_HAS_CLOCK_DRIFT_STD_DEV   0x40000000
+/** GpsLocationExtended has leap seconds **/
+#define GPS_LOCATION_EXTENDED_HAS_LEAP_SECONDS   0x80000000
+/** GpsLocationExtended has time uncertainty **/
+#define GPS_LOCATION_EXTENDED_HAS_TIME_UNC   0x100000000
+
 
 typedef uint32_t LocNavSolutionMask;
 /* Bitmask to specify whether SBAS ionospheric correction is used  */
@@ -347,18 +354,6 @@ typedef uint32_t LocNavSolutionMask;
 #define LOC_NAV_MASK_RTK_CORRECTION ((LocNavSolutionMask)0x0020)
 /**<  Bitmask to specify whether Position Report is PPP corrected   */
 #define LOC_NAV_MASK_PPP_CORRECTION ((LocNavSolutionMask)0x0040)
-
-typedef uint32_t LocPosDataMask;
-/* Bitmask to specify whether Navigation data has Forward Acceleration  */
-#define LOC_NAV_DATA_HAS_LONG_ACCEL ((LocPosDataMask)0x0001)
-/* Bitmask to specify whether Navigation data has Sideward Acceleration */
-#define LOC_NAV_DATA_HAS_LAT_ACCEL ((LocPosDataMask)0x0002)
-/* Bitmask to specify whether Navigation data has Vertical Acceleration */
-#define LOC_NAV_DATA_HAS_VERT_ACCEL ((LocPosDataMask)0x0004)
-/* Bitmask to specify whether Navigation data has Heading Rate */
-#define LOC_NAV_DATA_HAS_YAW_RATE ((LocPosDataMask)0x0008)
-/* Bitmask to specify whether Navigation data has Body pitch */
-#define LOC_NAV_DATA_HAS_PITCH ((LocPosDataMask)0x0010)
 
 /** GPS PRN Range */
 #define GPS_SV_PRN_MIN      1
@@ -405,22 +400,6 @@ typedef struct {
     uint64_t bds_sv_used_ids_mask;
     uint64_t qzss_sv_used_ids_mask;
 } GnssSvUsedInPosition;
-
-/* Body Frame parameters */
-typedef struct {
-    /** Contains Body frame LocPosDataMask bits. */
-   uint32_t        bodyFrameDatamask;
-   /* Forward Acceleration in body frame (m/s2)*/
-   float           longAccel;
-   /* Sideward Acceleration in body frame (m/s2)*/
-   float           latAccel;
-   /* Vertical Acceleration in body frame (m/s2)*/
-   float           vertAccel;
-   /* Heading Rate (Radians/second) */
-   float           yawRate;
-   /* Body pitch (Radians) */
-   float           pitch;
-}LocPositionDynamics;
 
 typedef struct {
 
@@ -611,7 +590,7 @@ typedef struct {
     /** SV Info source used in computing this fix */
     LocSvInfoSource sv_source;
     /** Body Frame Dynamics: 4wayAcceleration and pitch set with validity */
-    LocPositionDynamics bodyFrameData;
+    GnssLocationPositionDynamics bodyFrameData;
     /** GPS Time */
     GPSTimeStruct gpsTime;
     GnssSystemTime gnssSystemTime;
@@ -660,6 +639,10 @@ typedef struct {
     uint8_t numOfMeasReceived;
     /** Measurement Usage Information */
     GpsMeasUsageInfo measUsageInfo[GNSS_SV_MAX];
+    /** Leap Seconds */
+    uint8_t leapSeconds;
+    /** Time uncertainty in milliseconds   */
+    float timeUncMs;
 } GpsLocationExtended;
 
 enum loc_sess_status {
@@ -1496,7 +1479,7 @@ typedef void (*LocAgpsCloseResultCb)(bool isSuccess, AGpsExtType agpsType, void*
 
 #define SOCKET_DIR_LOCATION            "/dev/socket/location/"
 #define SOCKET_DIR_EHUB                "/dev/socket/location/ehub/"
-#define SOCKET_TO_LOCATION_HAL_DAEMON  "/dev/socket/location/hal_daemon"
+#define SOCKET_TO_LOCATION_HAL_DAEMON  "/dev/socket/loc_client/hal_daemon"
 
 #define SOCKET_DIR_TO_CLIENT           "/dev/socket/loc_client/"
 #define SOCKET_TO_LOCATION_CLIENT_BASE "/dev/socket/loc_client/toclient"

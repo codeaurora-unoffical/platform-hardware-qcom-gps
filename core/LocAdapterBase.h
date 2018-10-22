@@ -106,6 +106,11 @@ public:
         mLocApi->updateEvtMask();
     }
 
+    inline void updateNmeaMask(uint32_t mask)
+    {
+        mLocApi->updateNmeaMask(mask);
+    }
+
     inline bool isFeatureSupported(uint8_t featureVal) {
         return mLocApi->isFeatureSupported(featureVal);
     }
@@ -131,11 +136,14 @@ public:
                                      const GpsLocationExtended& locationExtended,
                                      enum loc_sess_status status,
                                      LocPosTechMask loc_technology_mask,
-                                     bool fromUlp=false,
-                                     bool fromEngineHub=false);
+                                     bool fromUlp = false,
+                                     bool fromEngineHub = false,
+                                     GnssDataNotification* pDataNotify = nullptr,
+                                     int msInWeek = -1);
     virtual void reportSvEvent(const GnssSvNotification& svNotify,
                                bool fromUlp=false, bool fromEngineHub=false);
     virtual void reportNmeaEvent(const char* nmea, size_t length, bool fromUlp=false);
+    virtual void reportDataEvent(const GnssDataNotification& dataNotify, int msInWeek);
     virtual void reportSvMeasurementEvent(GnssSvMeasurementSet &svMeasurementSet);
     virtual void reportSvPolynomialEvent(GnssSvPolynomial &svPolynomial);
     virtual void reportStatus(LocGpsStatusValue status);

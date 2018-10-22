@@ -320,6 +320,38 @@ GnssAdapter::convertLocationInfo(GnssLocationInfoNotification& out,
         out.flags |= GNSS_LOCATION_INFO_HOR_ACCURACY_ELIP_AZIMUTH_BIT;
         out.horUncEllipseOrientAzimuth = locationExtended.horUncEllipseOrientAzimuth;
     }
+    if (GPS_LOCATION_EXTENDED_HAS_NORTH_STD_DEV & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_NORTH_STD_DEV_BIT;
+        out.northVelocityStdDeviation = locationExtended.northStdDeviation;
+    }
+    if (GPS_LOCATION_EXTENDED_HAS_EAST_STD_DEV & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_EAST_STD_DEV_BIT;
+        out.eastVelocityStdDeviation = locationExtended.eastStdDeviation;
+    }
+    if (GPS_LOCATION_EXTENDED_HAS_NORTH_VEL & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_NORTH_VEL_BIT;
+        out.northVelocity = locationExtended.northVelocity;
+    }
+    if (GPS_LOCATION_EXTENDED_HAS_NORTH_VEL_UNC & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_NORTH_VEL_UNC_BIT;
+        out.northVelocityStdDeviation = locationExtended.northVelocityStdDeviation;
+    }
+    if (GPS_LOCATION_EXTENDED_HAS_EAST_VEL & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_EAST_VEL_BIT;
+        out.eastVelocity = locationExtended.eastVelocity;
+    }
+    if (GPS_LOCATION_EXTENDED_HAS_EAST_VEL_UNC & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_EAST_VEL_UNC_BIT;
+        out.eastVelocityStdDeviation = locationExtended.eastVelocityStdDeviation;
+    }
+    if (GPS_LOCATION_EXTENDED_HAS_UP_VEL & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_UP_VEL_BIT;
+        out.upVelocity = locationExtended.upVelocity;
+    }
+    if (GPS_LOCATION_EXTENDED_HAS_UP_VEL_UNC & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_UP_VEL_UNC_BIT;
+        out.upVelocityStdDeviation = locationExtended.upVelocityStdDeviation;
+    }
     if (GPS_LOCATION_EXTENDED_HAS_GNSS_SV_USED_DATA & locationExtended.flags) {
         out.flags |= GNSS_LOCATION_INFO_GNSS_SV_USED_DATA_BIT;
         out.svUsedInPosition.gpsSvUsedIdsMask =
@@ -332,69 +364,41 @@ GnssAdapter::convertLocationInfo(GnssLocationInfoNotification& out,
                 locationExtended.gnss_sv_used_ids.bds_sv_used_ids_mask;
         out.svUsedInPosition.qzssSvUsedIdsMask =
                 locationExtended.gnss_sv_used_ids.qzss_sv_used_ids_mask;
+        out.numOfMeasReceived = locationExtended.numOfMeasReceived;
+
+        for (int idx =0; idx < locationExtended.numOfMeasReceived; idx++) {
+            out.measUsageInfo[idx].gnssSignalType =
+                    locationExtended.measUsageInfo[idx].gnssSignalType;
+            out.measUsageInfo[idx].gnssSvId =
+                    locationExtended.measUsageInfo[idx].gnssSvId;
+            out.measUsageInfo[idx].gnssConstellation =
+                    locationExtended.measUsageInfo[idx].gnssConstellation;
+        }
     }
     if (GPS_LOCATION_EXTENDED_HAS_NAV_SOLUTION_MASK & locationExtended.flags) {
         out.flags |= GNSS_LOCATION_INFO_NAV_SOLUTION_MASK_BIT;
         out.navSolutionMask = locationExtended.navSolutionMask;
     }
     if (GPS_LOCATION_EXTENDED_HAS_POS_TECH_MASK & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_POS_TECH_MASK;
+        out.flags |= GNSS_LOCATION_INFO_POS_TECH_MASK_BIT;
         out.posTechMask = locationExtended.tech_mask;
     }
     if (GPS_LOCATION_EXTENDED_HAS_POS_DYNAMICS_DATA & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_POS_DYNAMICS_DATA;
-        if (locationExtended.bodyFrameData.bodyFrameDatamask &
-                LOCATION_NAV_DATA_HAS_LONG_ACCEL_BIT) {
-            out.bodyFrameData.bodyFrameDataMask |= LOCATION_NAV_DATA_HAS_LONG_ACCEL_BIT;
-        }
-        if (locationExtended.bodyFrameData.bodyFrameDatamask &
-                LOCATION_NAV_DATA_HAS_LAT_ACCEL_BIT) {
-            out.bodyFrameData.bodyFrameDataMask |= LOCATION_NAV_DATA_HAS_LAT_ACCEL_BIT;
-        }
-        if (locationExtended.bodyFrameData.bodyFrameDatamask &
-                LOCATION_NAV_DATA_HAS_VERT_ACCEL_BIT) {
-            out.bodyFrameData.bodyFrameDataMask |= LOCATION_NAV_DATA_HAS_VERT_ACCEL_BIT;
-        }
-        if (locationExtended.bodyFrameData.bodyFrameDatamask & LOCATION_NAV_DATA_HAS_YAW_RATE_BIT) {
-            out.bodyFrameData.bodyFrameDataMask |= LOCATION_NAV_DATA_HAS_YAW_RATE_BIT;
-        }
-        if (locationExtended.bodyFrameData.bodyFrameDatamask & LOCATION_NAV_DATA_HAS_PITCH_BIT) {
-            out.bodyFrameData.bodyFrameDataMask |= LOCATION_NAV_DATA_HAS_PITCH_BIT;
-        }
-        out.bodyFrameData.longAccel = locationExtended.bodyFrameData.longAccel;
-        out.bodyFrameData.latAccel = locationExtended.bodyFrameData.latAccel;
-        out.bodyFrameData.vertAccel = locationExtended.bodyFrameData.vertAccel;
-        out.bodyFrameData.yawRate = locationExtended.bodyFrameData.yawRate;
-        out.bodyFrameData.pitch = locationExtended.bodyFrameData.pitch;
+        out.flags |= GNSS_LOCATION_INFO_POS_DYNAMICS_DATA_BIT;
+        out.bodyFrameData = locationExtended.bodyFrameData;
     }
-    if (GPS_LOCATION_EXTENDED_HAS_GPS_TIME & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_GPS_TIME;
-        out.gnssSystemTime.gnssSystemTimeSrc = locationExtended.gnssSystemTime.gnssSystemTimeSrc;
-        out.gnssSystemTime.u = locationExtended.gnssSystemTime.u;
+
+    // Validity of this structure is established from the timeSrc of the GnssSystemTime structure.
+    out.gnssSystemTime = locationExtended.gnssSystemTime;
+
+    if (GPS_LOCATION_EXTENDED_HAS_LEAP_SECONDS & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_LEAP_SECONDS_BIT;
+        out.leapSeconds = locationExtended.leapSeconds;
     }
-    if (GPS_LOCATION_EXTENDED_HAS_NORTH_VEL & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_NORTH_VEL;
-        out.northVelocity = locationExtended.northVelocity;
-    }
-    if (GPS_LOCATION_EXTENDED_HAS_EAST_VEL & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_EAST_VEL;
-        out.eastVelocity = locationExtended.eastVelocity;
-    }
-    if (GPS_LOCATION_EXTENDED_HAS_UP_VEL & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_UP_VEL;
-        out.upVelocity = locationExtended.upVelocity;
-    }
-    if (GPS_LOCATION_EXTENDED_HAS_NORTH_VEL_UNC & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_NORTH_VEL_UNC;
-        out.northVelocityStdDeviation = locationExtended.northVelocityStdDeviation;
-    }
-    if (GPS_LOCATION_EXTENDED_HAS_EAST_VEL_UNC & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_EAST_VEL_UNC;
-        out.eastVelocityStdDeviation = locationExtended.eastVelocityStdDeviation;
-    }
-    if (GPS_LOCATION_EXTENDED_HAS_UP_VEL_UNC & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_UP_VEL_UNC;
-        out.upVelocityStdDeviation = locationExtended.upVelocityStdDeviation;
+
+    if (GPS_LOCATION_EXTENDED_HAS_TIME_UNC & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_TIME_UNC_BIT;
+        out.timeUncMs = locationExtended.timeUncMs;
     }
 }
 
@@ -846,8 +850,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                     err = mApi.setGpsLock(mConfig.gpsLock);
                 }
                 if (index < mCount) {
-                    errs[index++] = err;
+                    errs[index] = err;
                 }
+                index++;
             }
             if (mConfig.flags & GNSS_CONFIG_FLAGS_SUPL_VERSION_VALID_BIT) {
                 uint32_t newSuplVersion = mAdapter.convertSuplVersion(mConfig.suplVersion);
@@ -859,8 +864,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                     err = LOCATION_ERROR_SUCCESS;
                 }
                 if (index < mCount) {
-                    errs[index++] = err;
+                    errs[index] = err;
                 }
+                index++;
             }
             if (mConfig.flags & GNSS_CONFIG_FLAGS_SET_ASSISTANCE_DATA_VALID_BIT) {
                 if (GNSS_ASSISTANCE_TYPE_SUPL == mConfig.assistanceServer.type) {
@@ -888,8 +894,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                     err = LOCATION_ERROR_INVALID_PARAMETER;
                 }
                 if (index < mCount) {
-                    errs[index++] = err;
+                    errs[index] = err;
                 }
+                index++;
             }
             if (mConfig.flags & GNSS_CONFIG_FLAGS_LPP_PROFILE_VALID_BIT) {
                 uint32_t newLppProfile = mAdapter.convertLppProfile(mConfig.lppProfile);
@@ -901,8 +908,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                     err = LOCATION_ERROR_SUCCESS;
                 }
                 if (index < mCount) {
-                    errs[index++] = err;
+                    errs[index] = err;
                 }
+                index++;
             }
             if (mConfig.flags & GNSS_CONFIG_FLAGS_LPPE_CONTROL_PLANE_VALID_BIT) {
                 uint32_t newLppeControlPlaneMask =
@@ -914,8 +922,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                     err = LOCATION_ERROR_SUCCESS;
                 }
                 if (index < mCount) {
-                    errs[index++] = err;
+                    errs[index] = err;
                 }
+                index++;
             }
             if (mConfig.flags & GNSS_CONFIG_FLAGS_LPPE_USER_PLANE_VALID_BIT) {
                 uint32_t newLppeUserPlaneMask =
@@ -927,8 +936,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                     err = LOCATION_ERROR_SUCCESS;
                 }
                 if (index < mCount) {
-                    errs[index++] = err;
+                    errs[index] = err;
                 }
+                index++;
             }
             if (mConfig.flags & GNSS_CONFIG_FLAGS_AGLONASS_POSITION_PROTOCOL_VALID_BIT) {
                 uint32_t newAGloProtMask =
@@ -941,8 +951,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                     err = LOCATION_ERROR_SUCCESS;
                 }
                 if (index < mCount) {
-                    errs[index++] = err;
+                    errs[index] = err;
                 }
+                index++;
             }
             if (mConfig.flags & GNSS_CONFIG_FLAGS_EM_PDN_FOR_EM_SUPL_VALID_BIT) {
                 uint32_t newEP4ES = mAdapter.convertEP4ES(mConfig.emergencyPdnForEmergencySupl);
@@ -951,8 +962,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                 }
                 err = LOCATION_ERROR_SUCCESS;
                 if (index < mCount) {
-                    errs[index++] = err;
+                    errs[index] = err;
                 }
+                index++;
             }
             if (mConfig.flags & GNSS_CONFIG_FLAGS_SUPL_EM_SERVICES_BIT) {
                 uint32_t newSuplEs = mAdapter.convertSuplEs(mConfig.suplEmergencyServices);
@@ -961,8 +973,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                 }
                 err = LOCATION_ERROR_SUCCESS;
                 if (index < mCount) {
-                    errs[index++] = err;
+                    errs[index] = err;
                 }
+                index++;
             }
             if (mConfig.flags & GNSS_CONFIG_FLAGS_SUPL_MODE_BIT) {
                 uint32_t newSuplMode = mAdapter.convertSuplMode(mConfig.suplModeMask);
@@ -974,8 +987,9 @@ GnssAdapter::gnssUpdateConfigCommand(GnssConfig config)
                 }
                 err = LOCATION_ERROR_SUCCESS;
                 if (index < mCount) {
-                    errs[index++] = err;
+                    errs[index] = err;
                 }
+                index++;
             }
 
             mAdapter.reportResponse(index, errs, mIds);
@@ -1246,6 +1260,11 @@ GnssAdapter::updateClientsEventMask()
         }
         if (it->second.gnssMeasurementsCb != nullptr) {
             mask |= LOC_API_ADAPTER_BIT_GNSS_MEASUREMENT;
+        }
+        if (it->second.gnssDataCb != nullptr) {
+            mask |= LOC_API_ADAPTER_BIT_PARSED_POSITION_REPORT;
+            mask |= LOC_API_ADAPTER_BIT_NMEA_1HZ_REPORT;
+            updateNmeaMask(mNmeaMask | LOC_NMEA_MASK_DEBUG_V02);
         }
     }
 
@@ -2123,7 +2142,9 @@ GnssAdapter::reportPositionEvent(const UlpLocation& ulpLocation,
                                  enum loc_sess_status status,
                                  LocPosTechMask techMask,
                                  bool fromUlp,
-                                 bool fromEngineHub)
+                                 bool fromEngineHub,
+                                 GnssDataNotification* pDataNotify,
+                                 int msInWeek)
 {
     LOC_LOGD("%s]: fromUlp %u, from engine hub %u, status %u, tech mask 0x%x",
              __func__, fromUlp, fromEngineHub, status, techMask);
@@ -2166,17 +2187,31 @@ GnssAdapter::reportPositionEvent(const UlpLocation& ulpLocation,
         const GpsLocationExtended mLocationExtended;
         loc_sess_status mStatus;
         LocPosTechMask mTechMask;
+        GnssDataNotification mDataNotify;
+        int mMsInWeek;
+        bool mbIsDataValid;
         inline MsgReportPosition(GnssAdapter& adapter,
                                  const UlpLocation& ulpLocation,
                                  const GpsLocationExtended& locationExtended,
                                  loc_sess_status status,
-                                 LocPosTechMask techMask) :
+                                 LocPosTechMask techMask,
+                                 GnssDataNotification* pDataNotify,
+                                 int msInWeek) :
             LocMsg(),
             mAdapter(adapter),
             mUlpLocation(ulpLocation),
             mLocationExtended(locationExtended),
             mStatus(status),
-            mTechMask(techMask) {}
+            mTechMask(techMask),
+            mMsInWeek(msInWeek) {
+                memset(&mDataNotify, 0, sizeof(mDataNotify));
+                if (pDataNotify != nullptr) {
+                    mDataNotify = *pDataNotify;
+                    mbIsDataValid = true;
+                } else {
+                    mbIsDataValid = false;
+                }
+        }
         inline virtual void proc() const {
             // extract bug report info - this returns true if consumed by systemstatus
             SystemStatus* s = mAdapter.getSystemStatus();
@@ -2185,10 +2220,19 @@ GnssAdapter::reportPositionEvent(const UlpLocation& ulpLocation,
                 s->eventPosition(mUlpLocation, mLocationExtended);
             }
             mAdapter.reportPosition(mUlpLocation, mLocationExtended, mStatus, mTechMask);
+            if (true == mbIsDataValid) {
+                if (-1 != mMsInWeek) {
+                    mAdapter.getDataInformation((GnssDataNotification&)mDataNotify,
+                                                mMsInWeek);
+                }
+                mAdapter.reportData((GnssDataNotification&)mDataNotify);
+            }
         }
     };
 
-    sendMsg(new MsgReportPosition(*this, ulpLocation, locationExtended, status, techMask));
+    sendMsg(new MsgReportPosition(*this, ulpLocation, locationExtended,
+                                  status, techMask,
+                                  pDataNotify, msInWeek));
 }
 
 bool
@@ -2437,6 +2481,54 @@ GnssAdapter::reportNmea(const char* nmea, size_t length)
     }
 }
 
+void
+GnssAdapter::reportDataEvent(const GnssDataNotification& dataNotify,
+                             int msInWeek)
+{
+    struct MsgReportData : public LocMsg {
+        GnssAdapter& mAdapter;
+        GnssDataNotification mDataNotify;
+        int mMsInWeek;
+        inline MsgReportData(GnssAdapter& adapter,
+            const GnssDataNotification& dataNotify,
+            int msInWeek) :
+            LocMsg(),
+            mAdapter(adapter),
+            mDataNotify(dataNotify),
+            mMsInWeek(msInWeek) {
+        }
+        inline virtual void proc() const {
+            if (-1 != mMsInWeek) {
+                mAdapter.getDataInformation((GnssDataNotification&)mDataNotify,
+                                            mMsInWeek);
+            }
+            mAdapter.reportData((GnssDataNotification&)mDataNotify);
+        }
+    };
+
+    sendMsg(new MsgReportData(*this, dataNotify, msInWeek));
+}
+
+void
+GnssAdapter::reportData(GnssDataNotification& dataNotify)
+{
+    for (int sig = 0; sig < GNSS_LOC_MAX_NUMBER_OF_SIGNAL_TYPES; sig++) {
+        if (GNSS_LOC_DATA_JAMMER_IND_BIT ==
+            (dataNotify.gnssDataMask[sig] & GNSS_LOC_DATA_JAMMER_IND_BIT)) {
+            LOC_LOGv("jammerInd[%d]=%f", sig, dataNotify.jammerInd[sig]);
+        }
+        if (GNSS_LOC_DATA_AGC_BIT ==
+            (dataNotify.gnssDataMask[sig] & GNSS_LOC_DATA_AGC_BIT)) {
+            LOC_LOGv("agc[%d]=%f", sig, dataNotify.agc[sig]);
+        }
+    }
+    for (auto it = mClientData.begin(); it != mClientData.end(); ++it) {
+        if (nullptr != it->second.gnssDataCb) {
+            it->second.gnssDataCb(dataNotify);
+        }
+    }
+}
+
 bool
 GnssAdapter::requestNiNotifyEvent(const GnssNiNotification &notify, const void* data)
 {
@@ -2604,7 +2696,7 @@ void
 GnssAdapter::reportGnssMeasurementDataEvent(const GnssMeasurementsNotification& measurements,
                                             int msInWeek)
 {
-    LOC_LOGD("%s]: ", __func__);
+    LOC_LOGD("%s]: msInWeek=%d", __func__, msInWeek);
 
     struct MsgReportGnssMeasurementData : public LocMsg {
         GnssAdapter& mAdapter;
@@ -3210,7 +3302,6 @@ GnssAdapter::getAgcInformation(GnssMeasurementsNotification& measurements, int m
         systemstatus->getReport(reports, true);
 
         if ((!reports.mRfAndParams.empty()) && (!reports.mTimeAndClock.empty()) &&
-            reports.mTimeAndClock.back().mTimeValid &&
             (abs(msInWeek - (int)reports.mTimeAndClock.back().mGpsTowMs) < 2000)) {
 
             for (size_t i = 0; i < measurements.count; i++) {
@@ -3249,6 +3340,94 @@ GnssAdapter::getAgcInformation(GnssMeasurementsNotification& measurements, int m
                 default:
                     break;
                 }
+            }
+        }
+    }
+}
+
+/* get Data information from system status and fill it */
+void
+GnssAdapter::getDataInformation(GnssDataNotification& data, int msInWeek)
+{
+    SystemStatus* systemstatus = getSystemStatus();
+
+    LOC_LOGV("%s]: msInWeek=%d", __func__, msInWeek);
+    if (nullptr != systemstatus) {
+        SystemStatusReports reports = {};
+        systemstatus->getReport(reports, true);
+
+        if ((!reports.mRfAndParams.empty()) && (!reports.mTimeAndClock.empty()) &&
+            (abs(msInWeek - (int)reports.mTimeAndClock.back().mGpsTowMs) < 2000)) {
+
+            for (int sig = GNSS_LOC_SIGNAL_TYPE_GPS_L1CA;
+                 sig < GNSS_LOC_MAX_NUMBER_OF_SIGNAL_TYPES; sig++) {
+                data.gnssDataMask[sig] = 0;
+                data.jammerInd[sig] = 0.0;
+                data.agc[sig] = 0.0;
+            }
+            if (GNSS_INVALID_JAMMER_IND != reports.mRfAndParams.back().mAgcGps) {
+                data.gnssDataMask[GNSS_LOC_SIGNAL_TYPE_GPS_L1CA] |=
+                        GNSS_LOC_DATA_AGC_BIT;
+                data.agc[GNSS_LOC_SIGNAL_TYPE_GPS_L1CA] =
+                        reports.mRfAndParams.back().mAgcGps;
+                data.gnssDataMask[GNSS_LOC_SIGNAL_TYPE_QZSS_L1CA] |=
+                        GNSS_LOC_DATA_AGC_BIT;
+                data.agc[GNSS_LOC_SIGNAL_TYPE_QZSS_L1CA] =
+                        reports.mRfAndParams.back().mAgcGps;
+                data.gnssDataMask[GNSS_LOC_SIGNAL_TYPE_SBAS_L1_CA] |=
+                        GNSS_LOC_DATA_AGC_BIT;
+                data.agc[GNSS_LOC_SIGNAL_TYPE_SBAS_L1_CA] =
+                    reports.mRfAndParams.back().mAgcGps;
+            }
+            if (GNSS_INVALID_JAMMER_IND != reports.mRfAndParams.back().mJammerGps) {
+                data.gnssDataMask[GNSS_LOC_SIGNAL_TYPE_GPS_L1CA] |=
+                        GNSS_LOC_DATA_JAMMER_IND_BIT;
+                data.jammerInd[GNSS_LOC_SIGNAL_TYPE_GPS_L1CA] =
+                        (double)reports.mRfAndParams.back().mJammerGps;
+                data.gnssDataMask[GNSS_LOC_SIGNAL_TYPE_QZSS_L1CA] |=
+                        GNSS_LOC_DATA_JAMMER_IND_BIT;
+                data.jammerInd[GNSS_LOC_SIGNAL_TYPE_QZSS_L1CA] =
+                        (double)reports.mRfAndParams.back().mJammerGps;
+                data.gnssDataMask[GNSS_LOC_SIGNAL_TYPE_SBAS_L1_CA] |=
+                        GNSS_LOC_DATA_JAMMER_IND_BIT;
+                data.jammerInd[GNSS_LOC_SIGNAL_TYPE_SBAS_L1_CA] =
+                    (double)reports.mRfAndParams.back().mJammerGps;
+            }
+            if (GNSS_INVALID_JAMMER_IND != reports.mRfAndParams.back().mAgcGlo) {
+                data.gnssDataMask[GNSS_LOC_SIGNAL_TYPE_GLONASS_G1] |=
+                        GNSS_LOC_DATA_AGC_BIT;
+                data.agc[GNSS_LOC_SIGNAL_TYPE_GLONASS_G1] =
+                        reports.mRfAndParams.back().mAgcGlo;
+            }
+            if (GNSS_INVALID_JAMMER_IND != reports.mRfAndParams.back().mJammerGlo) {
+                data.gnssDataMask[GNSS_LOC_SIGNAL_TYPE_GLONASS_G1] |=
+                        GNSS_LOC_DATA_JAMMER_IND_BIT;
+                data.jammerInd[GNSS_LOC_SIGNAL_TYPE_GLONASS_G1] =
+                        (double)reports.mRfAndParams.back().mJammerGlo;
+            }
+            if (GNSS_INVALID_JAMMER_IND != reports.mRfAndParams.back().mAgcBds) {
+                data.gnssDataMask[GNSS_LOC_SIGNAL_TYPE_BEIDOU_B1_I] |=
+                        GNSS_LOC_DATA_AGC_BIT;
+                data.agc[GNSS_LOC_SIGNAL_TYPE_BEIDOU_B1_I] =
+                        reports.mRfAndParams.back().mAgcBds;
+            }
+            if (GNSS_INVALID_JAMMER_IND != reports.mRfAndParams.back().mJammerBds) {
+                data.gnssDataMask[GNSS_LOC_SIGNAL_TYPE_BEIDOU_B1_I] |=
+                        GNSS_LOC_DATA_JAMMER_IND_BIT;
+                data.jammerInd[GNSS_LOC_SIGNAL_TYPE_BEIDOU_B1_I] =
+                        (double)reports.mRfAndParams.back().mJammerBds;
+            }
+            if (GNSS_INVALID_JAMMER_IND != reports.mRfAndParams.back().mAgcGal) {
+                data.gnssDataMask[GNSS_LOC_SIGNAL_TYPE_GALILEO_E1_C] |=
+                        GNSS_LOC_DATA_AGC_BIT;
+                data.agc[GNSS_LOC_SIGNAL_TYPE_GALILEO_E1_C] =
+                        reports.mRfAndParams.back().mAgcGal;
+            }
+            if (GNSS_INVALID_JAMMER_IND != reports.mRfAndParams.back().mJammerGal) {
+                data.gnssDataMask[GNSS_LOC_SIGNAL_TYPE_GALILEO_E1_C] |=
+                        GNSS_LOC_DATA_JAMMER_IND_BIT;
+                data.jammerInd[GNSS_LOC_SIGNAL_TYPE_GALILEO_E1_C] =
+                        (double)reports.mRfAndParams.back().mJammerGal;
             }
         }
     }

@@ -235,12 +235,15 @@ public:
                                      const GpsLocationExtended& locationExtended,
                                      enum loc_sess_status status,
                                      LocPosTechMask techMask,
-                                     bool fromUlp=false,
-                                     bool fromEngineHub=false);
+                                     bool fromUlp = false,
+                                     bool fromEngineHub = false,
+                                     GnssDataNotification* pDataNotify = nullptr,
+                                     int msInWeek = -1);
     virtual void reportSvEvent(const GnssSvNotification& svNotify,
                                bool fromUlp=false,
                                bool fromEngineHub=false);
     virtual void reportNmeaEvent(const char* nmea, size_t length, bool fromUlp=false);
+    virtual void reportDataEvent(const GnssDataNotification& dataNotify, int msInWeek);
     virtual bool requestNiNotifyEvent(const GnssNiNotification& notify, const void* data);
     virtual void reportGnssMeasurementDataEvent(const GnssMeasurementsNotification& measurements,
                                                 int msInWeek);
@@ -262,6 +265,7 @@ public:
                         LocPosTechMask techMask);
     void reportSv(GnssSvNotification& svNotify);
     void reportNmea(const char* nmea, size_t length);
+    void reportData(GnssDataNotification& dataNotify);
     bool requestNiNotify(const GnssNiNotification& notify, const void* data);
     void reportGnssMeasurementData(const GnssMeasurementsNotification& measurements);
 
@@ -269,6 +273,8 @@ public:
     bool getDebugReport(GnssDebugReport& report);
     /* get AGC information from system status and fill it */
     void getAgcInformation(GnssMeasurementsNotification& measurements, int msInWeek);
+    /* get Data information from system status and fill it */
+    void getDataInformation(GnssDataNotification& data, int msInWeek);
 
     /*==== SYSTEM STATUS ================================================================*/
     inline SystemStatus* getSystemStatus(void) { return mSystemStatus; }
