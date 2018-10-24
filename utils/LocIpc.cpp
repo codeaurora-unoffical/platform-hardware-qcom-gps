@@ -202,7 +202,8 @@ bool LocIpc::sendData(int fd, const sockaddr_un &addr, const uint8_t data[], uin
     if (length <= LOC_MSG_BUF_LEN) {
         if (::sendto(fd, data, length, 0,
                 (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            LOC_LOGe("cannot send to socket. reason:%s", strerror(errno));
+            LOC_LOGe("cannot send to socket:%s. reason:%s",
+                    addr.sun_path, strerror(errno));
             result = false;
         }
     } else {
@@ -210,7 +211,8 @@ bool LocIpc::sendData(int fd, const sockaddr_un &addr, const uint8_t data[], uin
         head.append(std::to_string(length));
         if (::sendto(fd, head.c_str(), head.length(), 0,
                 (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            LOC_LOGe("cannot send to socket. reason:%s", strerror(errno));
+            LOC_LOGe("cannot send to socket:%s. reason:%s",
+                    addr.sun_path, strerror(errno));
             result = false;
         } else {
             size_t sentBytes = 0;
@@ -222,7 +224,8 @@ bool LocIpc::sendData(int fd, const sockaddr_un &addr, const uint8_t data[], uin
                 ssize_t rv = ::sendto(fd, data + sentBytes, partLen, 0,
                         (struct sockaddr*)&addr, sizeof(addr));
                 if (rv < 0) {
-                    LOC_LOGe("cannot send to socket. reason:%s", strerror(errno));
+                    LOC_LOGe("cannot send to socket:%s. reason:%s",
+                            addr.sun_path, strerror(errno));
                     result = false;
                     break;
                 }
