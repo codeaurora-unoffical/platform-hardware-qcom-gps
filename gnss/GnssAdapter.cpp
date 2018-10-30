@@ -40,6 +40,7 @@
 #include <netdb.h>
 #include <GnssAdapter.h>
 #include <string>
+#include <sstream>
 #include <loc_log.h>
 #include <loc_nmea.h>
 #include <Agps.h>
@@ -86,7 +87,8 @@ GnssAdapter::GnssAdapter() :
     mSystemStatus(SystemStatus::getInstance(mMsgTask)),
     mServerUrl(":"),
     mXtraObserver(mSystemStatus->getOsObserver(), mMsgTask),
-    mBlockCPIInfo{}
+    mBlockCPIInfo{},
+    mLocSystemInfo{}
 {
     LOC_LOGD("%s]: Constructor %p", __func__, this);
     mLocPositionMode.mode = LOC_POSITION_MODE_INVALID;
@@ -733,6 +735,14 @@ GnssAdapter::setConfigCommand()
                 }
 
                 adapter.mLocApi->setXtraVersionCheckSync(gpsConf.XTRA_VERSION_CHECK);
+
+                adapter.mLocApi->setConstrainedTuncMode(
+                        gpsConf.CONSTRAINED_TIME_UNCERTAINTY_ENABLED == 1,
+                        (float)gpsConf.CONSTRAINED_TIME_UNCERTAINTY_THRESHOLD,
+                        gpsConf.CONSTRAINED_TIME_UNCERTAINTY_ENERGY_BUDGET);
+                adapter.mLocApi->setPositionAssistedClockEstimatorMode(
+                        gpsConf.POSITION_ASSISTED_CLOCK_ESTIMATOR_ENABLED == 1);
+
                 if (sapConf.GYRO_BIAS_RANDOM_WALK_VALID ||
                     sapConf.ACCEL_RANDOM_WALK_SPECTRAL_DENSITY_VALID ||
                     sapConf.ANGLE_RANDOM_WALK_SPECTRAL_DENSITY_VALID ||
@@ -1839,6 +1849,8 @@ GnssAdapter::addClientCommand(LocationAPI* client, const LocationCallbacks& call
             mClient(client),
             mCallbacks(callbacks) {}
         inline virtual void proc() const {
+            // check whether we need to notify client of cached location system info
+            mAdapter.notifyClientOfCachedLocationSystemInfo(mClient, mCallbacks);
             mAdapter.saveClient(mClient, mCallbacks);
         }
     };
@@ -1908,10 +1920,13 @@ GnssAdapter::updateClientsEventMask()
             mask |= LOC_API_ADAPTER_BIT_NMEA_1HZ_REPORT;
             updateNmeaMask(mNmeaMask | LOC_NMEA_MASK_DEBUG_V02);
         }
+        if (it->second.locationSystemInfoCb != nullptr) {
+            mask |= LOC_API_ADAPTER_BIT_LOC_SYSTEM_INFO;
+        }
     }
 
     /*
-    ** For Automotive use cases we need to enable MEASUREMENT and POLY
+    ** For Automotive use cases we need to enable MEASUREMENT, POLY and EPHEMERIS
     ** when QDR is enabled (e.g.: either enabled via conf file or
     ** engine hub is loaded successfully).
     ** Note: this need to be called from msg queue thread.
@@ -1921,8 +1936,11 @@ GnssAdapter::updateClientsEventMask()
         mask |= LOC_API_ADAPTER_BIT_GNSS_MEASUREMENT;
         mask |= LOC_API_ADAPTER_BIT_GNSS_SV_POLYNOMIAL_REPORT;
         mask |= LOC_API_ADAPTER_BIT_PARSED_UNPROPAGATED_POSITION_REPORT;
+        mask |= LOC_API_ADAPTER_BIT_GNSS_SV_EPHEMERIS_REPORT;
+        mask |= LOC_API_ADAPTER_BIT_LOC_SYSTEM_INFO;
 
-        LOC_LOGD("%s]: Auto usecase, Enable MEAS/POLY - mask 0x%" PRIx64 "", __func__, mask);
+        LOC_LOGd("Auto usecase, Enable MEAS/POLY/EPHEMERIS - mask 0x%" PRIx64 "",
+                mask);
     }
 
     if (mAgpsCbInfo.statusV4Cb != NULL) {
@@ -2093,6 +2111,35 @@ GnssAdapter::saveClient(LocationAPI* client, const LocationCallbacks& callbacks)
 {
     mClientData[client] = callbacks;
     updateClientsEventMask();
+}
+
+void
+GnssAdapter::notifyClientOfCachedLocationSystemInfo(
+        LocationAPI* client, const LocationCallbacks& callbacks) {
+
+    if (mLocSystemInfo.systemInfoMask) {
+        // client need to be notified if client has not yet previously registered
+        // for the info but now register for it.
+        bool notifyClientOfSystemInfo = false;
+        // check whether we need to notify client of cached location system info
+        //
+        // client need to be notified if client has not yet previously registered
+        // for the info but now register for it.
+        if (callbacks.locationSystemInfoCb) {
+            notifyClientOfSystemInfo = true;
+            auto it = mClientData.find(client);
+            if (it != mClientData.end()) {
+                LocationCallbacks oldCallbacks = it->second;
+                if (oldCallbacks.locationSystemInfoCb) {
+                    notifyClientOfSystemInfo = false;
+                }
+            }
+        }
+
+        if (notifyClientOfSystemInfo) {
+            callbacks.locationSystemInfoCb(mLocSystemInfo);
+        }
+    }
 }
 
 void
@@ -2930,22 +2977,30 @@ GnssAdapter::reportPosition(const UlpLocation& ulpLocation,
                             LocPosTechMask techMask)
 {
     bool reported = needReport(ulpLocation, status, techMask);
+    mGnssSvIdUsedInPosAvail = false;
     if (reported) {
         if (locationExtended.flags & GPS_LOCATION_EXTENDED_HAS_GNSS_SV_USED_DATA) {
             mGnssSvIdUsedInPosAvail = true;
             mGnssSvIdUsedInPosition = locationExtended.gnss_sv_used_ids;
         }
+
+        GnssLocationInfoNotification locationInfo = {};
+        convertLocationInfo(locationInfo, locationExtended);
+        convertLocation(locationInfo.location, ulpLocation, locationExtended, techMask);
+
         for (auto it=mClientData.begin(); it != mClientData.end(); ++it) {
             if (nullptr != it->second.gnssLocationInfoCb) {
-                GnssLocationInfoNotification locationInfo = {};
-                convertLocationInfo(locationInfo, locationExtended);
-                convertLocation(locationInfo.location, ulpLocation, locationExtended, techMask);
                 it->second.gnssLocationInfoCb(locationInfo);
             } else if (nullptr != it->second.trackingCb) {
-                Location location = {};
-                convertLocation(location, ulpLocation, locationExtended, techMask);
-                it->second.trackingCb(location);
+                it->second.trackingCb(locationInfo.location);
             }
+        }
+
+        // if engine hub is running and the fix is from sensor, e.g.: DRE,
+        // inject DRE fix to modem
+        if ((1 == ContextBase::mGps_conf.POSITION_ASSISTED_CLOCK_ESTIMATOR_ENABLED) &&
+                (true == initEngHubProxy()) && (LOC_POS_TECH_MASK_SENSORS & techMask)) {
+            mLocApi->injectPosition(locationInfo, false);
         }
     }
 
@@ -2958,9 +3013,12 @@ GnssAdapter::reportPosition(const UlpLocation& ulpLocation,
         uint8_t generate_nmea = (reported && status != LOC_SESS_FAILURE && !blank_fix);
         std::vector<std::string> nmeaArraystr;
         loc_nmea_generate_pos(ulpLocation, locationExtended, generate_nmea, nmeaArraystr);
+        stringstream ss;
         for (auto sentence : nmeaArraystr) {
-            reportNmea(sentence.c_str(), sentence.length());
+            ss << sentence;
         }
+        string s = ss.str();
+        reportNmea(s.c_str(), s.length());
     }
 }
 
@@ -3051,9 +3109,12 @@ GnssAdapter::reportSv(GnssSvNotification& svNotify)
     if (NMEA_PROVIDER_AP == ContextBase::mGps_conf.NMEA_PROVIDER && !mTrackingSessions.empty()) {
         std::vector<std::string> nmeaArraystr;
         loc_nmea_generate_sv(svNotify, nmeaArraystr);
+        stringstream ss;
         for (auto sentence : nmeaArraystr) {
-            reportNmea(sentence.c_str(), sentence.length());
+            ss << sentence;
         }
+        string s = ss.str();
+        reportNmea(s.c_str(), s.length());
     }
 
     mGnssSvIdUsedInPosAvail = false;
@@ -3201,6 +3262,47 @@ GnssAdapter::requestNiNotifyEvent(const GnssNiNotification &notify, const void* 
     sendMsg(new MsgReportNiNotify(*this, notify, data));
 
     return true;
+}
+
+void
+GnssAdapter::reportLocationSystemInfoEvent(const LocationSystemInfo & locationSystemInfo) {
+
+    // send system info to engine hub
+    mEngHubProxy->gnssReportSystemInfo(locationSystemInfo);
+
+    struct MsgLocationSystemInfo : public LocMsg {
+        GnssAdapter& mAdapter;
+        LocationSystemInfo mSystemInfo;
+        inline MsgLocationSystemInfo(GnssAdapter& adapter,
+            const LocationSystemInfo& systemInfo) :
+            LocMsg(),
+            mAdapter(adapter),
+            mSystemInfo(systemInfo) {}
+        inline virtual void proc() const {
+            mAdapter.reportLocationSystemInfo(mSystemInfo);
+        }
+    };
+
+    sendMsg(new MsgLocationSystemInfo(*this, locationSystemInfo));
+}
+
+void
+GnssAdapter::reportLocationSystemInfo(const LocationSystemInfo & locationSystemInfo) {
+    // save the info into the master copy piece by piece, as other system info
+    // may come at different time
+    if (locationSystemInfo.systemInfoMask & LOCATION_SYS_INFO_LEAP_SECOND) {
+        mLocSystemInfo.systemInfoMask |= LOCATION_SYS_INFO_LEAP_SECOND;
+        mLocSystemInfo.leapSecondSysInfo = locationSystemInfo.leapSecondSysInfo;
+    }
+
+    // we received new info, inform client of the newly received info
+    if (locationSystemInfo.systemInfoMask) {
+        for (auto it=mClientData.begin(); it != mClientData.end(); ++it) {
+            if (it->second.locationSystemInfoCb != nullptr) {
+                it->second.locationSystemInfoCb(locationSystemInfo);
+            }
+        }
+    }
 }
 
 static void* niThreadProc(void *args)
@@ -3387,6 +3489,14 @@ GnssAdapter::reportSvPolynomialEvent(GnssSvPolynomial &svPolynomial)
     mEngHubProxy->gnssReportSvPolynomial(svPolynomial);
 }
 
+void
+GnssAdapter::reportSvEphemerisEvent(GnssSvEphemerisReport & svEphemeris)
+{
+    LOC_LOGD("%s]:", __func__);
+    mEngHubProxy->gnssReportSvEphemeris(svEphemeris);
+}
+
+
 bool
 GnssAdapter::requestOdcpiEvent(OdcpiRequestInfo& request)
 {
@@ -3450,6 +3560,28 @@ void GnssAdapter::requestOdcpi(const OdcpiRequestInfo& request)
         LOC_LOGw("ODCPI request not supported");
     }
 }
+
+bool GnssAdapter::reportDeleteAidingDataEvent(GnssAidingData& aidingData)
+{
+    LOC_LOGD("%s]:", __func__);
+
+    struct MsgHandleDeleteAidingDataEvent : public LocMsg {
+        GnssAdapter& mAdapter;
+        GnssAidingData mData;
+        inline MsgHandleDeleteAidingDataEvent(GnssAdapter& adapter,
+                                   GnssAidingData& data) :
+            LocMsg(),
+            mAdapter(adapter),
+            mData(data) {}
+        inline virtual void proc() const {
+            mAdapter.mEngHubProxy->gnssDeleteAidingData(mData);
+        }
+    };
+
+    sendMsg(new MsgHandleDeleteAidingDataEvent(*this, aidingData));
+    return true;
+}
+
 
 void GnssAdapter::initOdcpiCommand(const OdcpiRequestCallback& callback)
 {
@@ -3540,6 +3672,35 @@ void GnssAdapter::odcpiTimerExpire()
     } else {
         mOdcpiTimer.stop();
     }
+}
+
+void
+GnssAdapter::invokeGnssEnergyConsumedCallback(uint64_t energyConsumedSinceFirstBoot) {
+    if (mGnssEnergyConsumedCb) {
+        mGnssEnergyConsumedCb(energyConsumedSinceFirstBoot);
+        mGnssEnergyConsumedCb = nullptr;
+    }
+}
+
+bool
+GnssAdapter::reportGnssEngEnergyConsumedEvent(uint64_t energyConsumedSinceFirstBoot){
+    LOC_LOGD("%s]: %" PRIu64 " ", __func__, energyConsumedSinceFirstBoot);
+
+    struct MsgReportGnssGnssEngEnergyConsumed : public LocMsg {
+        GnssAdapter& mAdapter;
+        uint64_t mGnssEnergyConsumedSinceFirstBoot;
+        inline MsgReportGnssGnssEngEnergyConsumed(GnssAdapter& adapter,
+                                                  uint64_t energyConsumed) :
+                LocMsg(),
+                mAdapter(adapter),
+                mGnssEnergyConsumedSinceFirstBoot(energyConsumed) {}
+        inline virtual void proc() const {
+            mAdapter.invokeGnssEnergyConsumedCallback(mGnssEnergyConsumedSinceFirstBoot);
+        }
+    };
+
+    sendMsg(new MsgReportGnssGnssEngEnergyConsumed(*this, energyConsumedSinceFirstBoot));
+    return true;
 }
 
 void GnssAdapter::initDefaultAgps() {
@@ -4190,6 +4351,32 @@ static void agpsCloseResultCb (bool isSuccess, AGpsExtType agpsType, void* userD
     }
 }
 
+void
+GnssAdapter::saveGnssEnergyConsumedCallback(GnssEnergyConsumedCallback energyConsumedCb) {
+    mGnssEnergyConsumedCb = energyConsumedCb;
+}
+
+void
+GnssAdapter::getGnssEnergyConsumedCommand(GnssEnergyConsumedCallback energyConsumedCb) {
+    struct MsgGetGnssEnergyConsumed : public LocMsg {
+        GnssAdapter& mAdapter;
+        LocApiBase& mApi;
+        GnssEnergyConsumedCallback mEnergyConsumedCb;
+        inline MsgGetGnssEnergyConsumed(GnssAdapter& adapter, LocApiBase& api,
+                                        GnssEnergyConsumedCallback energyConsumedCb) :
+            LocMsg(),
+            mAdapter(adapter),
+            mApi(api),
+            mEnergyConsumedCb(energyConsumedCb){}
+        inline virtual void proc() const {
+            mAdapter.saveGnssEnergyConsumedCallback(mEnergyConsumedCb);
+            mApi.getGnssEnergyConsumed();
+        }
+    };
+
+    sendMsg(new MsgGetGnssEnergyConsumed(*this, *mLocApi, energyConsumedCb));
+}
+
 /* ==== Eng Hub Proxy ================================================================= */
 /* ======== UTILITIES ================================================================= */
 void
@@ -4276,11 +4463,17 @@ GnssAdapter::initEngHubProxy() {
                    reportSvEvent(svNotify, fromEngineHub);
             };
 
+        // callback function for engine hub to request for complete aiding data
+        GnssAdapterReqAidingDataCb reqAidingDataCb =
+            [this] (const GnssAidingDataSvMask& svDataMask) {
+            mLocApi->requestForAidingData(svDataMask);
+        };
+
         getEngHubProxyFn* getter = (getEngHubProxyFn*) dlsym(handle, "getEngHubProxy");
         if(getter != nullptr) {
             EngineHubProxyBase* hubProxy = (*getter) (mMsgTask, mSystemStatus->getOsObserver(),
                                                       reportPositionEventCb,
-                                                      reportSvEventCb);
+                                                      reportSvEventCb, reqAidingDataCb);
             if (hubProxy != nullptr) {
                 mEngHubProxy = hubProxy;
                 engHubLoadSuccessful = true;
