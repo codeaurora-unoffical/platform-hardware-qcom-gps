@@ -290,7 +290,7 @@ void XtraHalListenerSocket::startListenerThread() {
         LOC_LOGe("create thread failed");
     }
     mRunning = true;
-    if ((!mThread)&&
+    if ((nullptr != mThread) &&
        (!mThread->start("XtraHalListenerSocketThread", this, true))) {
         delete mThread;
         mThread = NULL;
