@@ -2420,6 +2420,7 @@ void GnssAdapter::initDefaultAgps() {
             dlsym(handle, "LocNetIfaceAgps_getAgpsCbInfo");
     if (getAgpsCbInfo == nullptr) {
         LOC_LOGE("%s]: Failed to get method LocNetIfaceAgps_getStatusCb", __func__);
+        dlclose(handle);
         return;
     }
 
@@ -2427,6 +2428,7 @@ void GnssAdapter::initDefaultAgps() {
 
     if (cbInfo.statusV4Cb == nullptr) {
         LOC_LOGE("%s]: statusV4Cb is nullptr!", __func__);
+        dlclose(handle);
         return;
     }
 
