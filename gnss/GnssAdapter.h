@@ -86,6 +86,8 @@ typedef std::function<void(
     uint64_t gnssEnergyConsumedFromFirstBoot
 )> GnssEnergyConsumedCallback;
 
+typedef void (*removeClientCompleteCallback)(LocationAPI* client);
+
 class GnssAdapter : public LocAdapterBase {
     /* ==== ULP ============================================================================ */
     UlpProxyBase* mUlpProxy;
@@ -155,7 +157,8 @@ public:
     /* ==== CLIENT ========================================================================= */
     /* ======== COMMANDS ====(Called from Client Thread)==================================== */
     void addClientCommand(LocationAPI* client, const LocationCallbacks& callbacks);
-    void removeClientCommand(LocationAPI* client);
+    void removeClientCommand(LocationAPI* client,
+                             removeClientCompleteCallback rmClientCb);
     void requestCapabilitiesCommand(LocationAPI* client);
     /* ======== UTILITIES ================================================================== */
     void saveClient(LocationAPI* client, const LocationCallbacks& callbacks);
