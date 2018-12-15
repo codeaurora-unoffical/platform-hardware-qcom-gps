@@ -157,7 +157,6 @@ void LocIpc::stopListening() {
     if (mRunnable) {
         mRunnable = nullptr;
     }
-
 }
 
 bool LocIpc::send(const char name[], const std::string& data) {
