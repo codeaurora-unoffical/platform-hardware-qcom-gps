@@ -2349,7 +2349,6 @@ GnssAdapter::reportPositionEvent(const UlpLocation& ulpLocation,
         LocPosTechMask mTechMask;
         GnssDataNotification mDataNotify;
         int mMsInWeek;
-        bool mbIsDataValid;
         inline MsgReportPosition(GnssAdapter& adapter,
                                  const UlpLocation& ulpLocation,
                                  const GpsLocationExtended& locationExtended,
@@ -2366,9 +2365,8 @@ GnssAdapter::reportPositionEvent(const UlpLocation& ulpLocation,
             mMsInWeek(msInWeek) {
                 if (pDataNotify != nullptr) {
                     mDataNotify = *pDataNotify;
-                    mbIsDataValid = true;
                 } else {
-                    mbIsDataValid = false;
+                    mDataNotify.size = 0;
                 }
         }
         inline virtual void proc() const {
@@ -2378,7 +2376,7 @@ GnssAdapter::reportPositionEvent(const UlpLocation& ulpLocation,
                 s->eventPosition(mUlpLocation, mLocationExtended);
             }
             mAdapter.reportPosition(mUlpLocation, mLocationExtended, mStatus, mTechMask);
-            if (true == mbIsDataValid) {
+            if (0 != mDataNotify.size) {
                 if (-1 != mMsInWeek) {
                     mAdapter.getDataInformation((GnssDataNotification&)mDataNotify,
                                                 mMsInWeek);
