@@ -156,6 +156,7 @@ void LocIpc::stopListening() {
         std::string abort = LOC_MSG_ABORT;
         socketName = (reinterpret_cast<LocIpcRunnable *>(mRunnable))->mIpcName.c_str();
         send(socketName, abort);
+        mRunnable = nullptr;
     }
 
     if (mIpcFd >= 0) {
@@ -170,10 +171,6 @@ void LocIpc::stopListening() {
         unlink(socketName);
     }
 
-    if (mRunnable) {
-        delete mRunnable;
-        mRunnable = nullptr;
-    }
 }
 
 bool LocIpc::send(const char name[], const std::string& data) {
