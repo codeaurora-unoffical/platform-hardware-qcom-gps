@@ -1163,6 +1163,13 @@ typedef std::function<void(
 typedef std::function<void(
 )> locationApiDestroyCompleteCallback;
 
+typedef uint16_t LocationAdapterTypeMask;
+typedef enum {
+    LOCATION_ADAPTER_GNSS_TYPE_BIT      = (1<<0), // adapter type is GNSS
+    LOCATION_ADAPTER_FLP_TYPE_BIT       = (1<<1), // adapter type is FLP
+    LOCATION_ADAPTER_GEOFENCE_TYPE_BIT  = (1<<2)  // adapter type is geo fence
+} LocationAdapterTypeBits;
+
 typedef struct {
     // do not use size_t as data type for size_t is architecture dependent
     uint32_t size; // set to sizeof(LocationCallbacks)
