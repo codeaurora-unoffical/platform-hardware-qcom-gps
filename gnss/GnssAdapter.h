@@ -323,6 +323,8 @@ public:
                                      const SystemStatusReports& in);
 
     void injectLocationCommand(double latitude, double longitude, float accuracy);
+    void injectLocationExtCommand(const GnssLocationInfoNotification &locationInfo);
+
     void injectTimeCommand(int64_t time, int64_t timeReference, int32_t uncertainty);
 };
 
