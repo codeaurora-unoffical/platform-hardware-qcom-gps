@@ -1688,7 +1688,7 @@ GnssAdapter::startTrackingCommand(LocationAPI* client, LocationOptions& options)
         LocApiBase& mApi;
         LocationAPI* mClient;
         uint32_t mSessionId;
-        LocationOptions mOptions;
+        mutable LocationOptions mOptions;
         inline MsgStartTracking(GnssAdapter& adapter,
                                LocApiBase& api,
                                LocationAPI* client,
@@ -1708,6 +1708,9 @@ GnssAdapter::startTrackingCommand(LocationAPI* client, LocationOptions& options)
             } else if (0 == mOptions.size) {
                 err = LOCATION_ERROR_INVALID_PARAMETER;
             } else {
+                if (mOptions.minInterval < MIN_TRACKING_INTERVAL) {
+                    mOptions.minInterval = MIN_TRACKING_INTERVAL;
+                }
                 // Api doesn't support multiple clients for time based tracking, so mutiplex
                 bool reportToClientWithNoWait =
                         mAdapter.startTrackingMultiplex(mClient, mSessionId, mOptions);
@@ -1756,6 +1759,10 @@ bool
 GnssAdapter::startTracking(LocationAPI* client, uint32_t sessionId,
         const LocationOptions& options)
 {
+    LOC_LOGd("minInterval %u minDistance %u mode %u ",
+             options.minInterval, options.minDistance,
+             options.mode);
+
     bool reportToClientWithNoWait = true;
 
     LocPosMode locPosMode = {};
@@ -1895,7 +1902,7 @@ GnssAdapter::updateTrackingOptionsCommand(LocationAPI* client, uint32_t id,
         LocApiBase& mApi;
         LocationAPI* mClient;
         uint32_t mSessionId;
-        LocationOptions mOptions;
+        mutable LocationOptions mOptions;
         inline MsgUpdateTracking(GnssAdapter& adapter,
                                 LocApiBase& api,
                                 LocationAPI* client,
@@ -1913,6 +1920,9 @@ GnssAdapter::updateTrackingOptionsCommand(LocationAPI* client, uint32_t id,
                 if (0 == mOptions.size) {
                     err = LOCATION_ERROR_INVALID_PARAMETER;
                 } else {
+                    if (mOptions.minInterval < MIN_TRACKING_INTERVAL) {
+                        mOptions.minInterval = MIN_TRACKING_INTERVAL;
+                    }
                     // Api doesn't support multiple clients for time based tracking, so mutiplex
                     bool reportToClientWithNoWait =
                             mAdapter.updateTrackingMultiplex(mClient, mSessionId, mOptions);
