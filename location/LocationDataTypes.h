@@ -160,8 +160,9 @@ typedef enum {
     GNSS_LOCATION_INFO_UP_VEL_UNC_BIT                   = (1<<21),// valid Up Velocity Uncertainty
     GNSS_LOCATION_INFO_LEAP_SECONDS_BIT                 = (1<<22),// valid leap seconds
     GNSS_LOCATION_INFO_TIME_UNC_BIT                     = (1<<23),// valid time uncertainty
-    GNSS_LOCATION_INFO_NUM_SV_USED_IN_POSITION_BIT      = (1<<24) // number of SV used in position
-
+    GNSS_LOCATION_INFO_NUM_SV_USED_IN_POSITION_BIT      = (1<<24), // number of SV used in position
+    GNSS_LOCATION_INFO_CALIBRATION_CONFIDENCE_BIT       = (1<<25), // valid sensor cal confidence
+    GNSS_LOCATION_INFO_CALIBRATION_STATUS_BIT           = (1<<26), // valid sensor cal status
 } GnssLocationInfoFlagBits;
 
 typedef enum {
@@ -514,6 +515,8 @@ typedef enum {
 
 typedef enum
 {
+    GNSS_LOC_SV_SYSTEM_MIN                    = 1,
+    /**< Min enum of valid SV system. */
     GNSS_LOC_SV_SYSTEM_GPS                    = 1,
     /**< GPS satellite. */
     GNSS_LOC_SV_SYSTEM_GALILEO                = 2,
@@ -526,8 +529,10 @@ typedef enum
     /**< GLONASS satellite. */
     GNSS_LOC_SV_SYSTEM_BDS                    = 6,
     /**< BDS satellite. */
-    GNSS_LOC_SV_SYSTEM_QZSS                   = 7
+    GNSS_LOC_SV_SYSTEM_QZSS                   = 7,
     /**< QZSS satellite. */
+    GNSS_LOC_SV_SYSTEM_MAX                    = 7,
+    /**< Max enum of valid SV system. */
 } Gnss_LocSvSystemEnumType;
 
 typedef enum {
@@ -605,6 +610,20 @@ typedef struct {
     GnssAidingDataSv sv;         // SV specific aiding data
     GnssAidingDataCommon common; // common aiding data
 } GnssAidingData;
+
+typedef uint16_t DrCalibrationStatusMask;
+typedef enum {
+    // Indicate that roll calibration is needed. Need to take more turns on level ground
+    DR_ROLL_CALIBRATION_NEEDED  = (1<<0),
+    // Indicate that pitch calibration is needed. Need to take more turns on level ground
+    DR_PITCH_CALIBRATION_NEEDED = (1<<1),
+    // Indicate that yaw calibration is needed. Need to accelerate in a straight line
+    DR_YAW_CALIBRATION_NEEDED   = (1<<2),
+    // Indicate that odo calibration is needed. Need to accelerate in a straight line
+    DR_ODO_CALIBRATION_NEEDED   = (1<<3),
+    // Indicate that gyro calibration is needed. Need to take more turns on level ground
+    DR_GYRO_CALIBRATION_NEEDED  = (1<<4)
+} DrCalibrationStatusBits;
 
 typedef struct {
     // do not use size_t as data type for size_t is architecture dependent
@@ -840,6 +859,9 @@ typedef struct {
     GnssMeasUsageInfo measUsageInfo[GNSS_SV_MAX]; // GNSS Measurement Usage info
     uint8_t leapSeconds;                          // leap second
     float timeUncMs;                              // Time uncertainty in milliseconds
+    uint8_t calibrationConfidence;                // Sensor calibration confidence percent,
+                                                  // in range of [0, 100]
+    DrCalibrationStatusMask calibrationStatus;    // Sensor calibration status
     Location location;
 } GnssLocationInfoNotification;
 
