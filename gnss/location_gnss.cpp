@@ -53,6 +53,7 @@ static void disable(uint32_t id);
 static uint32_t* gnssUpdateConfig(GnssConfig config);
 
 static void injectLocation(double latitude, double longitude, float accuracy);
+static void injectLocationExt(const GnssLocationInfoNotification &locationInfo);
 static void injectTime(int64_t time, int64_t timeReference, int32_t uncertainty);
 
 static void agpsInit(const AgpsCbInfo& cbInfo);
@@ -88,7 +89,8 @@ static const GnssInterface gGnssInterface = {
     agpsDataConnFailed,
     getDebugReport,
     updateConnectionStatus,
-    getGnssEnergyConsumed
+    getGnssEnergyConsumed,
+    injectLocationExt
 };
 
 #ifndef DEBUG_X86
@@ -272,4 +274,11 @@ static void getGnssEnergyConsumed(GnssEnergyConsumedCallback energyConsumedCb) {
     if (NULL != gGnssAdapter) {
         gGnssAdapter->getGnssEnergyConsumedCommand(energyConsumedCb);
     }
+}
+
+static void injectLocationExt(const GnssLocationInfoNotification &locationInfo)
+{
+   if (NULL != gGnssAdapter) {
+       gGnssAdapter->injectLocationExtCommand(locationInfo);
+   }
 }
