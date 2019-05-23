@@ -1,4 +1,4 @@
-/* Copyright (c) 2017 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -34,15 +34,11 @@
 #include <log_util.h>
 #include <pthread.h>
 #include <map>
+#include <loc_misc_utils.h>
 
-typedef void* (getLocationInterface)();
-
-typedef uint16_t LocationAdapterTypeMask;
-typedef enum {
-    LOCATION_ADAPTER_GNSS_TYPE_BIT      = (1<<0), // adapter type is GNSS
-    LOCATION_ADAPTER_FLP_TYPE_BIT       = (1<<1), // adapter type is FLP
-    LOCATION_ADAPTER_GEOFENCE_TYPE_BIT  = (1<<2)  // adapter type is geo fence
-} LocationAdapterTypeBits;
+typedef const GnssInterface* (getGnssInterface)();
+typedef const GeofenceInterface* (getGeofenceInterface)();
+typedef const BatchingInterface* (getBatchingInterface)();
 
 typedef struct {
     // bit mask of the adpaters that we need to wait for the removeClientCompleteCallback
@@ -64,22 +60,24 @@ typedef struct {
     LocationControlCallbacks controlCallbacks;
     GnssInterface* gnssInterface;
     GeofenceInterface* geofenceInterface;
-    FlpInterface* flpInterface;
+    BatchingInterface* batchingInterface;
 } LocationAPIData;
 
 static LocationAPIData gData = {};
 static pthread_mutex_t gDataMutex = PTHREAD_MUTEX_INITIALIZER;
 static bool gGnssLoadFailed = false;
-static bool gFlpLoadFailed = false;
+static bool gBatchingLoadFailed = false;
 static bool gGeofenceLoadFailed = false;
 
-static bool needsGnssTrackingInfo(LocationCallbacks& locationCallbacks)
-{
-    return (locationCallbacks.gnssLocationInfoCb != nullptr ||
-            locationCallbacks.gnssSvCb != nullptr ||
-            locationCallbacks.gnssNmeaCb != nullptr ||
-            locationCallbacks.gnssDataCb != nullptr ||
-            locationCallbacks.gnssMeasurementsCb != nullptr);
+template <typename T1, typename T2>
+static const T1* loadLocationInterface(const char* library, const char* name) {
+    void* libhandle = nullptr;
+    T2* getter = (T2*)dlGetSymFromLib(libhandle, library, name);
+    if (nullptr == getter) {
+        return (const T1*) getter;
+    }else {
+        return (*getter)();
+    }
 }
 
 static bool isGnssClient(LocationCallbacks& locationCallbacks)
@@ -90,10 +88,9 @@ static bool isGnssClient(LocationCallbacks& locationCallbacks)
             locationCallbacks.gnssMeasurementsCb != nullptr);
 }
 
-static bool isFlpClient(LocationCallbacks& locationCallbacks)
+static bool isBatchingClient(LocationCallbacks& locationCallbacks)
 {
-    return (locationCallbacks.trackingCb != nullptr ||
-            locationCallbacks.batchingCb != nullptr);
+    return (locationCallbacks.batchingCb != nullptr);
 }
 
 static bool isGeofenceClient(LocationCallbacks& locationCallbacks)
@@ -102,41 +99,14 @@ static bool isGeofenceClient(LocationCallbacks& locationCallbacks)
             locationCallbacks.geofenceStatusCb != nullptr);
 }
 
-static void* loadLocationInterface(const char* library, const char* name)
-{
-    LOC_LOGD("%s]: loading %s::%s ...", __func__, library, name);
-    if (NULL == library || NULL == name) {
-        return NULL;
-    }
-    getLocationInterface* getter = NULL;
-    const char *error = NULL;
-    dlerror();
-    void *handle = dlopen(library, RTLD_NOW);
-    if (NULL == handle || (error = dlerror()) != NULL)  {
-        LOC_LOGW("dlopen for %s failed, error = %s", library, error);
-    } else {
-        getter = (getLocationInterface*)dlsym(handle, name);
-        if ((error = dlerror()) != NULL)  {
-            LOC_LOGW("dlsym for %s::%s failed, error = %s", library, name, error);
-            getter = NULL;
-        }
-    }
 
-    if (NULL == getter) {
-        return (void*)getter;
-    } else {
-        return (*getter)();
-    }
-}
-
-void onRemoveClientCompleteCb (
-    LocationAPI* client, LocationAdapterTypeMask adapterType)
+void LocationAPI::onRemoveClientCompleteCb (LocationAdapterTypeMask adapterType)
 {
     bool invokeCallback = false;
     locationApiDestroyCompleteCallback destroyCompleteCb;
     LOC_LOGd("adatper type %x", adapterType);
     pthread_mutex_lock(&gDataMutex);
-    auto it = gData.destroyClientData.find(client);
+    auto it = gData.destroyClientData.find(this);
     if (it != gData.destroyClientData.end()) {
         it->second.waitAdapterMask &= ~adapterType;
         if (it->second.waitAdapterMask == 0) {
@@ -151,22 +121,24 @@ void onRemoveClientCompleteCb (
         LOC_LOGd("invoke client destroy cb");
         (destroyCompleteCb) ();
         LOC_LOGd("finish invoke client destroy cb");
+
+        delete this;
     }
 }
 
 void onGnssRemoveClientCompleteCb (LocationAPI* client)
 {
-    onRemoveClientCompleteCb (client, LOCATION_ADAPTER_GNSS_TYPE_BIT);
+    client->onRemoveClientCompleteCb (LOCATION_ADAPTER_GNSS_TYPE_BIT);
 }
 
-void onFlpRemoveClientCompleteCb (LocationAPI* client)
+void onBatchingRemoveClientCompleteCb (LocationAPI* client)
 {
-    onRemoveClientCompleteCb (client, LOCATION_ADAPTER_FLP_TYPE_BIT);
+    client->onRemoveClientCompleteCb (LOCATION_ADAPTER_BATCHING_TYPE_BIT);
 }
 
 void onGeofenceRemoveClientCompleteCb (LocationAPI* client)
 {
-    onRemoveClientCompleteCb (client, LOCATION_ADAPTER_GEOFENCE_TYPE_BIT);
+    client->onRemoveClientCompleteCb (LOCATION_ADAPTER_GEOFENCE_TYPE_BIT);
 }
 
 LocationAPI*
@@ -186,7 +158,8 @@ LocationAPI::createInstance(LocationCallbacks& locationCallbacks)
     if (isGnssClient(locationCallbacks)) {
         if (NULL == gData.gnssInterface && !gGnssLoadFailed) {
             gData.gnssInterface =
-                (GnssInterface*)loadLocationInterface("libgnss.so", "getGnssInterface");
+                (GnssInterface*)loadLocationInterface<GnssInterface,
+                    getGnssInterface>("libgnss.so", "getGnssInterface");
             if (NULL == gData.gnssInterface) {
                 gGnssLoadFailed = true;
                 LOC_LOGW("%s:%d]: No gnss interface available", __func__, __LINE__);
@@ -203,21 +176,22 @@ LocationAPI::createInstance(LocationCallbacks& locationCallbacks)
         }
     }
 
-    if (isFlpClient(locationCallbacks)) {
-        if (NULL == gData.flpInterface && !gFlpLoadFailed) {
-            gData.flpInterface =
-                (FlpInterface*)loadLocationInterface("libflp.so", "getFlpInterface");
-            if (NULL == gData.flpInterface) {
-                gFlpLoadFailed = true;
-                LOC_LOGW("%s:%d]: No flp interface available", __func__, __LINE__);
+    if (isBatchingClient(locationCallbacks)) {
+        if (NULL == gData.batchingInterface && !gBatchingLoadFailed) {
+            gData.batchingInterface =
+                (BatchingInterface*)loadLocationInterface<BatchingInterface,
+                 getBatchingInterface>("libbatching.so", "getBatchingInterface");
+            if (NULL == gData.batchingInterface) {
+                gBatchingLoadFailed = true;
+                LOC_LOGW("%s:%d]: No batching interface available", __func__, __LINE__);
             } else {
-                gData.flpInterface->initialize();
+                gData.batchingInterface->initialize();
             }
         }
-        if (NULL != gData.flpInterface) {
-            gData.flpInterface->addClient(newLocationAPI, locationCallbacks);
+        if (NULL != gData.batchingInterface) {
+            gData.batchingInterface->addClient(newLocationAPI, locationCallbacks);
             if (!requestedCapabilities) {
-                gData.flpInterface->requestCapabilities(newLocationAPI);
+                gData.batchingInterface->requestCapabilities(newLocationAPI);
                 requestedCapabilities = true;
             }
         }
@@ -226,7 +200,8 @@ LocationAPI::createInstance(LocationCallbacks& locationCallbacks)
     if (isGeofenceClient(locationCallbacks)) {
         if (NULL == gData.geofenceInterface && !gGeofenceLoadFailed) {
             gData.geofenceInterface =
-                (GeofenceInterface*)loadLocationInterface("libgeofence.so", "getGeofenceInterface");
+               (GeofenceInterface*)loadLocationInterface<GeofenceInterface,
+               getGeofenceInterface>("libgeofencing.so", "getGeofenceInterface");
             if (NULL == gData.geofenceInterface) {
                 gGeofenceLoadFailed = true;
                 LOC_LOGW("%s:%d]: No geofence interface available", __func__, __LINE__);
@@ -260,13 +235,14 @@ LocationAPI::destroy(locationApiDestroyCompleteCallback destroyCompleteCb)
     if (it != gData.clientData.end()) {
         bool removeFromGnssInf =
                 (isGnssClient(it->second) && NULL != gData.gnssInterface);
-        bool removeFromFlpInf =
-                (isFlpClient(it->second) && NULL != gData.flpInterface);
+        bool removeFromBatchingInf =
+                (isBatchingClient(it->second) && NULL != gData.batchingInterface);
         bool removeFromGeofenceInf =
                 (isGeofenceClient(it->second) && NULL != gData.geofenceInterface);
-        bool needToWait = (removeFromGnssInf || removeFromFlpInf || removeFromGeofenceInf);
-        LOC_LOGe("removeFromGnssInf: %d, removeFromFlpInf: %d, removeFromGeofenceInf: %d, need %d",
-                 removeFromGnssInf, removeFromFlpInf, removeFromGeofenceInf, needToWait);
+        bool needToWait = (removeFromGnssInf || removeFromBatchingInf || removeFromGeofenceInf);
+        LOC_LOGe("removeFromGnssInf: %d, removeFromBatchingInf: %d, removeFromGeofenceInf: %d,"
+                 "need %d", removeFromGnssInf, removeFromBatchingInf, removeFromGeofenceInf,
+                 needToWait);
 
         if ((NULL != destroyCompleteCb) && (true == needToWait)) {
             LocationAPIDestroyCbData destroyCbData = {};
@@ -277,7 +253,7 @@ LocationAPI::destroy(locationApiDestroyCompleteCallback destroyCompleteCb)
             destroyCbData.waitAdapterMask =
                     (removeFromGnssInf ? LOCATION_ADAPTER_GNSS_TYPE_BIT : 0);
             destroyCbData.waitAdapterMask |=
-                    (removeFromFlpInf ? LOCATION_ADAPTER_FLP_TYPE_BIT : 0);
+                    (removeFromBatchingInf ? LOCATION_ADAPTER_BATCHING_TYPE_BIT : 0);
             destroyCbData.waitAdapterMask |=
                     (removeFromGeofenceInf ? LOCATION_ADAPTER_GEOFENCE_TYPE_BIT : 0);
             gData.destroyClientData[this] = destroyCbData;
@@ -288,9 +264,9 @@ LocationAPI::destroy(locationApiDestroyCompleteCallback destroyCompleteCb)
             gData.gnssInterface->removeClient(it->first,
                                               onGnssRemoveClientCompleteCb);
         }
-        if (removeFromFlpInf) {
-            gData.flpInterface->removeClient(it->first,
-                                             onFlpRemoveClientCompleteCb);
+        if (removeFromBatchingInf) {
+            gData.batchingInterface->removeClient(it->first,
+                                             onBatchingRemoveClientCompleteCb);
         }
         if (removeFromGeofenceInf) {
             gData.geofenceInterface->removeClient(it->first,
@@ -310,6 +286,7 @@ LocationAPI::destroy(locationApiDestroyCompleteCallback destroyCompleteCb)
     pthread_mutex_unlock(&gDataMutex);
     if (invokeDestroyCb == true) {
         (destroyCompleteCb) ();
+        delete this;
     }
 }
 
@@ -321,6 +298,7 @@ LocationAPI::LocationAPI()
 // private destructor
 LocationAPI::~LocationAPI()
 {
+    LOC_LOGD("LOCATION API DESTRUCTOR");
 }
 
 void
@@ -337,7 +315,8 @@ LocationAPI::updateCallbacks(LocationCallbacks& locationCallbacks)
     if (isGnssClient(locationCallbacks)) {
         if (NULL == gData.gnssInterface && !gGnssLoadFailed) {
             gData.gnssInterface =
-                (GnssInterface*)loadLocationInterface("libgnss.so", "getGnssInterface");
+                (GnssInterface*)loadLocationInterface<GnssInterface,
+                    getGnssInterface>("libgnss.so", "getGnssInterface");
             if (NULL == gData.gnssInterface) {
                 gGnssLoadFailed = true;
                 LOC_LOGW("%s:%d]: No gnss interface available", __func__, __LINE__);
@@ -351,27 +330,29 @@ LocationAPI::updateCallbacks(LocationCallbacks& locationCallbacks)
         }
     }
 
-    if (isFlpClient(locationCallbacks)) {
-        if (NULL == gData.flpInterface && !gFlpLoadFailed) {
-            gData.flpInterface =
-                (FlpInterface*)loadLocationInterface("libflp.so", "getFlpInterface");
-            if (NULL == gData.flpInterface) {
-                gFlpLoadFailed = true;
-                LOC_LOGW("%s:%d]: No flp interface available", __func__, __LINE__);
+    if (isBatchingClient(locationCallbacks)) {
+        if (NULL == gData.batchingInterface && !gBatchingLoadFailed) {
+            gData.batchingInterface =
+                (BatchingInterface*)loadLocationInterface<BatchingInterface,
+                 getBatchingInterface>("libbatching.so", "getBatchingInterface");
+            if (NULL == gData.batchingInterface) {
+                gBatchingLoadFailed = true;
+                LOC_LOGW("%s:%d]: No batching interface available", __func__, __LINE__);
             } else {
-                gData.flpInterface->initialize();
+                gData.batchingInterface->initialize();
             }
         }
-        if (NULL != gData.flpInterface) {
+        if (NULL != gData.batchingInterface) {
             // either adds new Client or updates existing Client
-            gData.flpInterface->addClient(this, locationCallbacks);
+            gData.batchingInterface->addClient(this, locationCallbacks);
         }
     }
 
     if (isGeofenceClient(locationCallbacks)) {
         if (NULL == gData.geofenceInterface && !gGeofenceLoadFailed) {
             gData.geofenceInterface =
-                (GeofenceInterface*)loadLocationInterface("libgeofence.so", "getGeofenceInterface");
+                (GeofenceInterface*)loadLocationInterface<GeofenceInterface,
+                 getGeofenceInterface>("libgeofencing.so", "getGeofenceInterface");
             if (NULL == gData.geofenceInterface) {
                 gGeofenceLoadFailed = true;
                 LOC_LOGW("%s:%d]: No geofence interface available", __func__, __LINE__);
@@ -398,16 +379,10 @@ LocationAPI::startTracking(TrackingOptions& trackingOptions)
 
     auto it = gData.clientData.find(this);
     if (it != gData.clientData.end()) {
-        if (NULL != gData.flpInterface && trackingOptions.minDistance > 0) {
-            id = gData.flpInterface->startTracking(this, trackingOptions);
-        } else if (NULL != gData.gnssInterface && needsGnssTrackingInfo(it->second)) {
-            id = gData.gnssInterface->startTracking(this, trackingOptions);
-        } else if (NULL != gData.flpInterface) {
-            id = gData.flpInterface->startTracking(this, trackingOptions);
-        } else if (NULL != gData.gnssInterface) {
+        if (NULL != gData.gnssInterface) {
             id = gData.gnssInterface->startTracking(this, trackingOptions);
         } else {
-            LOC_LOGE("%s:%d]: No gnss/flp interface available for Location API client %p ",
+            LOC_LOGE("%s:%d]: No gnss interface available for Location API client %p ",
                      __func__, __LINE__, this);
         }
     } else {
@@ -426,16 +401,10 @@ LocationAPI::stopTracking(uint32_t id)
 
     auto it = gData.clientData.find(this);
     if (it != gData.clientData.end()) {
-        // we don't know if tracking was started on flp or gnss, so we call stop on both, where
-        // stopTracking call to the incorrect interface will fail without response back to client
         if (gData.gnssInterface != NULL) {
             gData.gnssInterface->stopTracking(this, id);
-        }
-        if (gData.flpInterface != NULL) {
-            gData.flpInterface->stopTracking(this, id);
-        }
-        if (gData.flpInterface == NULL && gData.gnssInterface == NULL) {
-            LOC_LOGE("%s:%d]: No gnss/flp interface available for Location API client %p ",
+        } else {
+            LOC_LOGE("%s:%d]: No gnss interface available for Location API client %p ",
                      __func__, __LINE__, this);
         }
     } else {
@@ -454,16 +423,10 @@ LocationAPI::updateTrackingOptions(
 
     auto it = gData.clientData.find(this);
     if (it != gData.clientData.end()) {
-        // we don't know if tracking was started on flp or gnss, so we call update on both, where
-        // updateTracking call to the incorrect interface will fail without response back to client
         if (gData.gnssInterface != NULL) {
             gData.gnssInterface->updateTrackingOptions(this, id, trackingOptions);
-        }
-        if (gData.flpInterface != NULL) {
-            gData.flpInterface->updateTrackingOptions(this, id, trackingOptions);
-        }
-        if (gData.flpInterface == NULL && gData.gnssInterface == NULL) {
-            LOC_LOGE("%s:%d]: No gnss/flp interface available for Location API client %p ",
+        } else {
+            LOC_LOGE("%s:%d]: No gnss interface available for Location API client %p ",
                      __func__, __LINE__, this);
         }
     } else {
@@ -480,10 +443,10 @@ LocationAPI::startBatching(BatchingOptions &batchingOptions)
     uint32_t id = 0;
     pthread_mutex_lock(&gDataMutex);
 
-    if (NULL != gData.flpInterface) {
-        id = gData.flpInterface->startBatching(this, batchingOptions);
+    if (NULL != gData.batchingInterface) {
+        id = gData.batchingInterface->startBatching(this, batchingOptions);
     } else {
-        LOC_LOGE("%s:%d]: No flp interface available for Location API client %p ",
+        LOC_LOGE("%s:%d]: No batching interface available for Location API client %p ",
                  __func__, __LINE__, this);
     }
 
@@ -496,10 +459,10 @@ LocationAPI::stopBatching(uint32_t id)
 {
     pthread_mutex_lock(&gDataMutex);
 
-    if (NULL != gData.flpInterface) {
-        gData.flpInterface->stopBatching(this, id);
+    if (NULL != gData.batchingInterface) {
+        gData.batchingInterface->stopBatching(this, id);
     } else {
-        LOC_LOGE("%s:%d]: No flp interface available for Location API client %p ",
+        LOC_LOGE("%s:%d]: No batching interface available for Location API client %p ",
                  __func__, __LINE__, this);
     }
 
@@ -511,10 +474,10 @@ LocationAPI::updateBatchingOptions(uint32_t id, BatchingOptions& batchOptions)
 {
     pthread_mutex_lock(&gDataMutex);
 
-    if (NULL != gData.flpInterface) {
-        gData.flpInterface->updateBatchingOptions(this, id, batchOptions);
+    if (NULL != gData.batchingInterface) {
+        gData.batchingInterface->updateBatchingOptions(this, id, batchOptions);
     } else {
-        LOC_LOGE("%s:%d]: No flp interface available for Location API client %p ",
+        LOC_LOGE("%s:%d]: No batching interface available for Location API client %p ",
                  __func__, __LINE__, this);
     }
 
@@ -526,10 +489,10 @@ LocationAPI::getBatchedLocations(uint32_t id, size_t count)
 {
     pthread_mutex_lock(&gDataMutex);
 
-    if (gData.flpInterface != NULL) {
-        gData.flpInterface->getBatchedLocations(this, id, count);
+    if (gData.batchingInterface != NULL) {
+        gData.batchingInterface->getBatchedLocations(this, id, count);
     } else {
-        LOC_LOGE("%s:%d]: No flp interface available for Location API client %p ",
+        LOC_LOGE("%s:%d]: No batching interface available for Location API client %p ",
                  __func__, __LINE__, this);
     }
 
@@ -637,7 +600,8 @@ LocationControlAPI::createInstance(LocationControlCallbacks& locationControlCall
     if (nullptr != locationControlCallbacks.responseCb && NULL == gData.controlAPI) {
         if (NULL == gData.gnssInterface && !gGnssLoadFailed) {
             gData.gnssInterface =
-                (GnssInterface*)loadLocationInterface("libgnss.so", "getGnssInterface");
+                (GnssInterface*)loadLocationInterface<GnssInterface,
+                    getGnssInterface>("libgnss.so", "getGnssInterface");
             if (NULL == gData.gnssInterface) {
                 gGnssLoadFailed = true;
                 LOC_LOGW("%s:%d]: No gnss interface available", __func__, __LINE__);

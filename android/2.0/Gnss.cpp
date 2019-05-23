@@ -27,7 +27,7 @@
 #include "Gnss.h"
 #include "LocationUtil.h"
 
-typedef void* (getLocationInterface)();
+typedef const GnssInterface* (getLocationInterface)();
 
 #define IMAGES_INFO_FILE "/sys/devices/soc0/images"
 #define DELIMITER ";"
@@ -37,6 +37,8 @@ namespace hardware {
 namespace gnss {
 namespace V2_0 {
 namespace implementation {
+
+using ::android::hardware::gnss::visibility_control::V1_0::implementation::GnssVisibilityControl;
 
 static std::string getVersionString() {
     static std::string version;
@@ -123,7 +125,7 @@ GnssAPIClient* Gnss::getApi() {
     return mApi;
 }
 
-GnssInterface* Gnss::getGnssInterface() {
+const GnssInterface* Gnss::getGnssInterface() {
     static bool getGnssInterfaceFailed = false;
     if (nullptr == mGnssInterface && !getGnssInterfaceFailed) {
         LOC_LOGD("%s]: loading libgnss.so::getGnssInterface ...", __func__);
@@ -144,7 +146,7 @@ GnssInterface* Gnss::getGnssInterface() {
         if (NULL == getter) {
             getGnssInterfaceFailed = true;
         } else {
-            mGnssInterface = (GnssInterface*)(*getter)();
+            mGnssInterface = (const GnssInterface*)(*getter)();
         }
     }
     return mGnssInterface;
@@ -239,6 +241,10 @@ Return<bool> Gnss::updateConfiguration(GnssConfig& gnssConfig) {
             mPendingConfig.flags |= GNSS_CONFIG_FLAGS_BLACKLISTED_SV_IDS_BIT;
             mPendingConfig.blacklistedSvIds = gnssConfig.blacklistedSvIds;
         }
+        if (gnssConfig.flags & GNSS_CONFIG_FLAGS_EMERGENCY_EXTENSION_SECONDS_BIT) {
+            mPendingConfig.flags |= GNSS_CONFIG_FLAGS_EMERGENCY_EXTENSION_SECONDS_BIT;
+            mPendingConfig.emergencyExtensionSeconds = gnssConfig.emergencyExtensionSeconds;
+        }
     }
     return true;
 }
@@ -277,7 +283,7 @@ Return<bool> Gnss::injectLocation(double latitudeDegrees,
                                   double longitudeDegrees,
                                   float accuracyMeters)  {
     ENTRY_LOG_CALLFLOW();
-    GnssInterface* gnssInterface = getGnssInterface();
+    const GnssInterface* gnssInterface = getGnssInterface();
     if (nullptr != gnssInterface) {
         gnssInterface->injectLocation(latitudeDegrees, longitudeDegrees, accuracyMeters);
         return true;
@@ -289,7 +295,7 @@ Return<bool> Gnss::injectLocation(double latitudeDegrees,
 Return<bool> Gnss::injectTime(int64_t timeMs, int64_t timeReferenceMs,
                               int32_t uncertaintyMs) {
     ENTRY_LOG_CALLFLOW();
-    GnssInterface* gnssInterface = getGnssInterface();
+    const GnssInterface* gnssInterface = getGnssInterface();
     if (nullptr != gnssInterface) {
         gnssInterface->injectTime(timeMs, timeReferenceMs, uncertaintyMs);
         return true;
@@ -377,7 +383,7 @@ Return<bool> Gnss::setCallback_1_1(const sp<V1_1::IGnssCallback>& callback) {
     ENTRY_LOG_CALLFLOW();
     callback->gnssNameCb(getVersionString());
     mGnssCbIface_1_1 = callback;
-    GnssInterface* gnssInterface = getGnssInterface();
+    const GnssInterface* gnssInterface = getGnssInterface();
     if (nullptr != gnssInterface) {
         OdcpiRequestCallback cb = [this](const OdcpiRequestInfo& odcpiRequest) {
             odcpiRequestCb(odcpiRequest);
@@ -407,9 +413,13 @@ Return<bool> Gnss::setPositionMode_1_1(V1_0::IGnss::GnssPositionMode mode,
 
 Return<sp<V1_1::IGnssMeasurement>> Gnss::getExtensionGnssMeasurement_1_1() {
     ENTRY_LOG_CALLFLOW();
+#ifdef GNSS_HIDL_LEGACY_MEASURMENTS
+    return nullptr;
+#else
     if (mGnssMeasurement == nullptr)
         mGnssMeasurement = new GnssMeasurement();
     return mGnssMeasurement;
+#endif
 }
 
 Return<sp<V1_1::IGnssConfiguration>> Gnss::getExtensionGnssConfiguration_1_1() {
@@ -421,7 +431,7 @@ Return<sp<V1_1::IGnssConfiguration>> Gnss::getExtensionGnssConfiguration_1_1() {
 
 Return<bool> Gnss::injectBestLocation(const GnssLocation& gnssLocation) {
     ENTRY_LOG_CALLFLOW();
-    GnssInterface* gnssInterface = getGnssInterface();
+    const GnssInterface* gnssInterface = getGnssInterface();
     if (nullptr != gnssInterface) {
         Location location = {};
         convertGnssLocation(gnssLocation, location);
@@ -470,9 +480,13 @@ Return<sp<V2_0::IGnssConfiguration>> Gnss::getExtensionGnssConfiguration_2_0() {
 }
 Return<sp<V2_0::IGnssMeasurement>> Gnss::getExtensionGnssMeasurement_2_0() {
     ENTRY_LOG_CALLFLOW();
+#ifdef GNSS_HIDL_LEGACY_MEASURMENTS
+    return nullptr;
+#else
     if (mGnssMeasurement == nullptr)
         mGnssMeasurement = new GnssMeasurement();
     return mGnssMeasurement;
+#endif
 }
 Return<sp<::android::hardware::gnss::measurement_corrections::V1_0::IMeasurementCorrections>>
         Gnss::getExtensionMeasurementCorrections() {
@@ -483,14 +497,33 @@ Return<sp<::android::hardware::gnss::measurement_corrections::V1_0::IMeasurement
 }
 Return<sp<::android::hardware::gnss::visibility_control::V1_0::IGnssVisibilityControl>>
         Gnss::getExtensionVisibilityControl() {
+    ENTRY_LOG_CALLFLOW();
     if (mVisibCtrl == nullptr) {
-        mVisibCtrl = new GnssVisibilityControl();
+        mVisibCtrl = new GnssVisibilityControl(this);
     }
     return mVisibCtrl;
 }
-IGnss* HIDL_FETCH_IGnss(const char* hal) {
+
+Return<bool> Gnss::injectBestLocation_2_0(
+    const ::android::hardware::gnss::V2_0::GnssLocation& location) {
     ENTRY_LOG_CALLFLOW();
-    IGnss* iface = nullptr;
+    /* TBD */
+    return false;
+}
+
+Return<sp<V2_0::IGnssBatching>> Gnss::getExtensionGnssBatching_2_0()  {
+    ENTRY_LOG_CALLFLOW();
+    return nullptr;
+}
+
+Return<sp<V2_0::IGnssDebug>> Gnss::getExtensionGnssDebug_2_0() {
+    ENTRY_LOG_CALLFLOW();
+    return nullptr;
+}
+
+V1_0::IGnss* HIDL_FETCH_IGnss(const char* hal) {
+    ENTRY_LOG_CALLFLOW();
+    V1_0::IGnss* iface = nullptr;
     iface = new Gnss();
     if (iface == nullptr) {
         LOC_LOGE("%s]: failed to get %s", __FUNCTION__, hal);

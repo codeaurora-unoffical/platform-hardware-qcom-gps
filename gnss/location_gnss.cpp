@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -58,6 +58,7 @@ static void gnssGetSvTypeConfig(GnssSvTypeConfigCallback& callback);
 static void gnssResetSvTypeConfig();
 
 static void injectLocation(double latitude, double longitude, float accuracy);
+static void injectLocationExt(const GnssLocationInfoNotification &locationInfo);
 static void injectTime(int64_t time, int64_t timeReference, int32_t uncertainty);
 
 static void agpsInit(const AgpsCbInfo& cbInfo);
@@ -65,8 +66,12 @@ static void agpsDataConnOpen(AGpsExtType agpsType, const char* apnName, int apnL
 static void agpsDataConnClosed(AGpsExtType agpsType);
 static void agpsDataConnFailed(AGpsExtType agpsType);
 static void getDebugReport(GnssDebugReport& report);
-static void updateConnectionStatus(bool connected, int8_t type);
+static void updateConnectionStatus(bool connected, int8_t type, bool roaming = false,
+                                   NetworkHandle networkHandle = NETWORK_HANDLE_UNKNOWN);
 static void getGnssEnergyConsumed(GnssEnergyConsumedCallback energyConsumedCb);
+static void enableNfwLocationAccess(bool enable);
+static void nfwInit(const NfwCbInfo& cbInfo);
+static void getPowerStateChanges(void* powerStateCb);
 
 static void odcpiInit(const OdcpiRequestCallback& callback);
 static void odcpiInject(const Location& location);
@@ -106,7 +111,11 @@ static const GnssInterface gGnssInterface = {
     odcpiInit,
     odcpiInject,
     blockCPI,
-    getGnssEnergyConsumed
+    getGnssEnergyConsumed,
+    enableNfwLocationAccess,
+    nfwInit,
+    getPowerStateChanges,
+    injectLocationExt
 };
 
 #ifndef DEBUG_X86
@@ -313,9 +322,11 @@ static void getDebugReport(GnssDebugReport& report) {
     }
 }
 
-static void updateConnectionStatus(bool connected, int8_t type) {
+static void updateConnectionStatus(bool connected, int8_t type,
+                                   bool roaming, NetworkHandle networkHandle) {
     if (NULL != gGnssAdapter) {
-        gGnssAdapter->getSystemStatus()->eventConnectionStatus(connected, type);
+        gGnssAdapter->getSystemStatus()->eventConnectionStatus(
+                connected, type, roaming, networkHandle);
     }
 }
 
@@ -345,4 +356,29 @@ static void getGnssEnergyConsumed(GnssEnergyConsumedCallback energyConsumedCb) {
     if (NULL != gGnssAdapter) {
         gGnssAdapter->getGnssEnergyConsumedCommand(energyConsumedCb);
     }
+}
+
+static void enableNfwLocationAccess(bool enable) {
+    if (NULL != gGnssAdapter) {
+        gGnssAdapter->nfwControlCommand(enable);
+    }
+}
+
+static void nfwInit(const NfwCbInfo& cbInfo) {
+    if (NULL != gGnssAdapter) {
+        gGnssAdapter->initNfwCommand(cbInfo);
+    }
+}
+static void getPowerStateChanges(void* powerStateCb)
+{
+    if (NULL != gGnssAdapter) {
+        gGnssAdapter->getPowerStateChangesCommand(powerStateCb);
+    }
+}
+
+static void injectLocationExt(const GnssLocationInfoNotification &locationInfo)
+{
+   if (NULL != gGnssAdapter) {
+       gGnssAdapter->injectLocationExtCommand(locationInfo);
+   }
 }

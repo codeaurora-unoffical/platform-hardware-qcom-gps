@@ -55,7 +55,6 @@ using ::android::hardware::gnss::V1_0::GnssLocation;
 using ::android::hardware::gnss::measurement_corrections::V1_0::IMeasurementCorrections;
 using ::android::hardware::gnss::measurement_corrections::V1_0::implementation::MeasurementCorrections;
 using ::android::hardware::gnss::visibility_control::V1_0::IGnssVisibilityControl;
-using ::android::hardware::gnss::visibility_control::V1_0::implementation::GnssVisibilityControl;
 
 struct Gnss : public IGnss {
     Gnss();
@@ -119,6 +118,13 @@ struct Gnss : public IGnss {
     Return<sp<::android::hardware::gnss::measurement_corrections::V1_0::IMeasurementCorrections>>
             getExtensionMeasurementCorrections() override;
     Return<sp<V2_0::IGnssMeasurement>> getExtensionGnssMeasurement_2_0() override;
+
+    Return<bool> injectBestLocation_2_0(const ::android::hardware::gnss::V2_0::GnssLocation& location) override;
+
+    Return<sp<V2_0::IGnssBatching>> getExtensionGnssBatching_2_0() override;
+    Return<sp<V2_0::IGnssDebug>> getExtensionGnssDebug_2_0() override;
+
+
     /**
      * This method returns the IGnssVisibilityControl interface.
      *
@@ -128,12 +134,11 @@ struct Gnss : public IGnss {
             getExtensionVisibilityControl() override;
 
 
-
     // These methods are not part of the IGnss base class.
     GnssAPIClient* getApi();
     Return<bool> setGnssNiCb(const sp<IGnssNiCallback>& niCb);
     Return<bool> updateConfiguration(GnssConfig& gnssConfig);
-    GnssInterface* getGnssInterface();
+    const GnssInterface* getGnssInterface();
 
     // Callback for ODCPI request
     void odcpiRequestCb(const OdcpiRequestInfo& request);
@@ -166,10 +171,10 @@ struct Gnss : public IGnss {
 
     GnssAPIClient* mApi = nullptr;
     GnssConfig mPendingConfig;
-    GnssInterface* mGnssInterface = nullptr;
+    const GnssInterface* mGnssInterface = nullptr;
 };
 
-extern "C" IGnss* HIDL_FETCH_IGnss(const char* name);
+extern "C" V1_0::IGnss* HIDL_FETCH_IGnss(const char* name);
 
 }  // namespace implementation
 }  // namespace V2_0

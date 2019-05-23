@@ -55,7 +55,7 @@ typedef struct loc_gps_cfg_s
     char           XTRA_SERVER_3[LOC_MAX_PARAM_STRING];
     uint32_t       USE_EMERGENCY_PDN_FOR_EMERGENCY_SUPL;
     uint32_t       NMEA_PROVIDER;
-    uint32_t       GPS_LOCK;
+    GnssConfigGpsLock   GPS_LOCK;
     uint32_t       A_GLONASS_POS_PROTOCOL_SELECT;
     uint32_t       AGPS_CERT_WRITABLE_MASK;
     uint32_t       AGPS_CONFIG_INJECT;
@@ -71,6 +71,7 @@ typedef struct loc_gps_cfg_s
     double         CONSTRAINED_TIME_UNCERTAINTY_THRESHOLD;
     uint32_t       CONSTRAINED_TIME_UNCERTAINTY_ENERGY_BUDGET;
     uint32_t       POSITION_ASSISTED_CLOCK_ESTIMATOR_ENABLED;
+    char           PROXY_APP_PACKAGE_NAME[LOC_MAX_PARAM_STRING];
 } loc_gps_cfg_s_type;
 
 /* NOTE: the implementaiton of the parser casts number

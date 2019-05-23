@@ -34,7 +34,9 @@
 #include <hidl/MQDescriptor.h>
 #include <hidl/Status.h>
 
+#include <gps_extended_c.h>
 #include <location_interface.h>
+#include "Gnss.h"
 
 namespace android {
 namespace hardware {
@@ -50,9 +52,10 @@ using ::android::hardware::hidl_vec;
 using ::android::hardware::Return;
 using ::android::hardware::Void;
 using ::android::sp;
+using ::android::hardware::gnss::V2_0::implementation::Gnss;
 
 struct GnssVisibilityControl : public IGnssVisibilityControl {
-    GnssVisibilityControl();
+    GnssVisibilityControl(Gnss* gnss);
     ~GnssVisibilityControl();
 
     // Methods from ::android::hardware::gnss::visibility_control::V1_0::IGnssVisibilityControl follow.
@@ -64,6 +67,16 @@ struct GnssVisibilityControl : public IGnssVisibilityControl {
      */
     Return<bool> setCallback(const ::android::sp<::android::hardware::gnss::visibility_control::V1_0::IGnssVisibilityControlCallback>& callback) override;
 
+    void statusCb(GnssNfwNotification notification);
+    bool isE911Session();
+
+    /* Data call setup callback passed down to GNSS HAL implementation */
+    static void nfwStatusCb(GnssNfwNotification notification);
+    static bool isInEmergencySession();
+
+private:
+    Gnss* mGnss = nullptr;
+    sp<IGnssVisibilityControlCallback> mGnssVisibilityControlCbIface = nullptr;
 };
 
 
