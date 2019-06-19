@@ -37,7 +37,6 @@ namespace gnss {
 namespace V1_0 {
 namespace implementation {
 
-static sp<Gnss> sGnss;
 void Gnss::GnssDeathRecipient::serviceDied(uint64_t cookie, const wp<IBase>& who) {
     LOC_LOGE("%s] service died. cookie: %llu, who: %p",
             __FUNCTION__, static_cast<unsigned long long>(cookie), &who);
@@ -48,14 +47,10 @@ void Gnss::GnssDeathRecipient::serviceDied(uint64_t cookie, const wp<IBase>& who
 }
 
 void location_on_battery_status_changed(bool charging) {
-    LOC_LOGd("battery status changed to %s charging", charging ? "" : "not ");
-    if (sGnss != nullptr) {
-        sGnss->getGnssInterface()->updateBatteryStatus(charging);
-    }
+    LOC_LOGd("%s: battery status changed to %s charging", __func__, charging ? "" : "not ");
 }
 Gnss::Gnss() {
     ENTRY_LOG_CALLFLOW();
-    sGnss = this;
     // register health client to listen on battery change
     loc_extn_battery_properties_listener_init(location_on_battery_status_changed);
     // clear pending GnssConfig
@@ -70,7 +65,6 @@ Gnss::~Gnss() {
         delete mApi;
         mApi = nullptr;
     }
-    sGnss = nullptr;
 }
 
 GnssAPIClient* Gnss::getApi() {
