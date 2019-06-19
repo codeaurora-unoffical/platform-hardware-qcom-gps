@@ -833,7 +833,6 @@ public:
     bool getReport(SystemStatusReports& reports, bool isLatestonly = false) const;
     bool setDefaultGnssEngineStates(void);
     bool eventConnectionStatus(bool connected, int8_t type);
-    bool updatePowerConnectState(bool charging);
 };
 
 } // namespace loc_core
