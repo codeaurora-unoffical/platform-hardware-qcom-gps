@@ -145,6 +145,9 @@ class GnssAdapter : public LocAdapterBase {
     LocPosMode mLocPositionMode;
     GnssSvUsedInPosition mGnssSvIdUsedInPosition;
     bool mGnssSvIdUsedInPosAvail;
+    GnssSvMbUsedInPosition mGnssMbSvIdUsedInPosition;
+    bool mGnssMbSvIdUsedInPosAvail;
+    GnssSignalTypeMask mGnssSignalType[GNSS_SV_MAX];
 
     /* ==== CONTROL ======================================================================== */
     LocationControlCallbacks mControlCallbacks;
@@ -202,6 +205,8 @@ class GnssAdapter : public LocAdapterBase {
                                 const LocPosTechMask techMask);
     static void convertLocationInfo(GnssLocationInfoNotification& out,
                                     const GpsLocationExtended& locationExtended);
+    static uint16_t getNumSvUsed(uint64_t svUsedIdsMask,
+                                 int totalSvCntInThisConstellation);
 
     /* ======== UTILITIES ================================================================== */
     inline void initOdcpi(const OdcpiRequestCallback& callback);

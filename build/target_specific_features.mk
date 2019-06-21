@@ -1,7 +1,6 @@
 GNSS_CFLAGS := \
     -Werror \
     -Wno-error=unused-parameter \
-    -Wno-error=format \
     -Wno-error=macro-redefined \
     -Wno-error=reorder \
     -Wno-error=missing-braces \
@@ -42,6 +41,8 @@ GNSS_HIDL_2_0_TARGET_LIST += msmnile
 GNSS_HIDL_2_0_TARGET_LIST += $(MSMSTEPPE)
 GNSS_HIDL_2_0_TARGET_LIST += $(TRINKET)
 GNSS_HIDL_2_0_TARGET_LIST += kona
+GNSS_HIDL_2_0_TARGET_LIST += atoll
+GNSS_HIDL_2_0_TARGET_LIST += lito
 
 ifneq (,$(filter $(GNSS_HIDL_2_0_TARGET_LIST),$(TARGET_BOARD_PLATFORM)))
 GNSS_HIDL_VERSION = 2.0
