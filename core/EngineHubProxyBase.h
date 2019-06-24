@@ -88,13 +88,8 @@ public:
     }
 };
 
-typedef std::function<void(const UlpLocation& ulpLocation,
-                           const GpsLocationExtended& locationExtended,
-                           enum loc_sess_status status,
-                           LocPosTechMask techMask,
-                           bool fromUlp,
-                           bool fromEngineHub)>
-        GnssAdapterReportPositionEventCb;
+typedef std::function<void(int count, EngineLocationInfo* locationArr)>
+        GnssAdapterReportEnginePositionsEventCb;
 
 typedef std::function<void(const GnssSvNotification& svNotify,
                            bool fromUlp,
@@ -103,10 +98,11 @@ typedef std::function<void(const GnssSvNotification& svNotify,
 
 // potential parameters: message queue: MsgTask * msgTask;
 // callback function to report back dr and ppe position and sv report
-typedef EngineHubProxyBase* (getEngHubProxyFn)(const MsgTask * msgTask,
-                                               IOsObserver* osObserver,
-                                               GnssAdapterReportPositionEventCb positionEventCb,
-                                               GnssAdapterReportSvEventCb svEventCb);
+typedef EngineHubProxyBase* (getEngHubProxyFn)(
+        const MsgTask * msgTask,
+        IOsObserver* osObserver,
+        GnssAdapterReportEnginePositionsEventCb positionEventCb,
+        GnssAdapterReportSvEventCb svEventCb);
 
 } // namespace loc_core
 

@@ -163,6 +163,8 @@ typedef enum {
     GNSS_LOCATION_INFO_NUM_SV_USED_IN_POSITION_BIT      = (1<<24), // number of SV used in position
     GNSS_LOCATION_INFO_CALIBRATION_CONFIDENCE_BIT       = (1<<25), // valid sensor cal confidence
     GNSS_LOCATION_INFO_CALIBRATION_STATUS_BIT           = (1<<26), // valid sensor cal status
+    GNSS_LOCATION_INFO_OUTPUT_ENG_TYPE_BIT              = (1<<27), // valid output engine type
+    GNSS_LOCATION_INFO_OUTPUT_ENG_MASK_BIT              = (1<<28), // valid output engine mask
 } GnssLocationInfoFlagBits;
 
 typedef enum {
@@ -207,7 +209,7 @@ typedef enum {
     // supports debug nmea sentences in the debugNmeaCallback
     LOCATION_CAPABILITIES_DEBUG_NMEA_BIT                    = (1<<8),
     // support outdoor trip batching
-    LOCATION_CAPABILITIES_OUTDOOR_TRIP_BATCHING_BIT         = (1<<9)
+    LOCATION_CAPABILITIES_OUTDOOR_TRIP_BATCHING_BIT         = (1<<9),
 } LocationCapabilitiesBits;
 
 typedef enum {
@@ -642,14 +644,45 @@ typedef struct {
     LocationTechnologyMask techMask;
 } Location;
 
-typedef struct {
+// TBD: check whether we need all the types
+typedef enum {
+    LOC_REQ_ENGINE_FUSED_BIT = (1<<0), // Keep this
+    LOC_REQ_ENGINE_SPE_BIT   = (1<<1),
+    LOC_REQ_ENGINE_PPE_BIT   = (1<<2),
+} LocReqEngineTypeMask;
+
+typedef enum {
+    LOC_OUTPUT_ENGINE_FUSED   = 0,
+    /** This is the GNSS fix from modem */
+    LOC_OUTPUT_ENGINE_SPE     = 1,
+    /** This is the GNSS fix with correction PPP/RTK correction */
+    LOC_OUTPUT_ENGINE_PPE     = 2,
+    LOC_OUTPUT_ENGINE_COUNT,
+} LocOutputEngineType;
+
+typedef uint32_t PositioningEngineMask;
+typedef enum {
+    STANDARD_POSITIONING_ENGINE = (1 << 0),
+    DEAD_RECKONING_ENGINE       = (1 << 1),
+    PRECISE_POSITIONING_ENGINE  = (1 << 2)
+} PositioningEngineBits;
+
+struct LocationOptions {
     // do not use size_t as data type for size_t is architecture dependent
     uint32_t size;          // set to sizeof(LocationOptions)
     uint32_t minInterval; // in milliseconds
     uint32_t minDistance; // in meters. if minDistance > 0, gnssSvCallback/gnssNmeaCallback/
                           // gnssMeasurementsCallback may not be called
     GnssSuplMode mode;    // Standalone/MS-Based/MS-Assisted
-} LocationOptions;
+    // behavior when this field is 0:
+    //  if engine hub is running, this will be fused fix,
+    //  if engine hub is not running, this will be SPE fix
+    LocReqEngineTypeMask locReqEngTypeMask;
+
+    inline LocationOptions() :
+            size(0), minInterval(0), minDistance(0), mode(GNSS_SUPL_MODE_STANDALONE),
+            locReqEngTypeMask((LocReqEngineTypeMask)0) {}
+} ;
 
 typedef struct {
     // do not use size_t as data type for size_t is architecture dependent
@@ -827,6 +860,7 @@ typedef struct {
 typedef struct {
     // do not use size_t as data type for size_t is architecture dependent
     uint32_t size;                        // set to sizeof(GnssLocationInfo)
+    Location location;
     GnssLocationInfoFlagMask flags;     // bitwise OR of GnssLocationInfoBits for param validity
     float altitudeMeanSeaLevel;         // altitude wrt mean sea level
     float pdop;                         // position dilusion of precision
@@ -862,7 +896,16 @@ typedef struct {
     uint8_t calibrationConfidence;                // Sensor calibration confidence percent,
                                                   // in range of [0, 100]
     DrCalibrationStatusMask calibrationStatus;    // Sensor calibration status
-    Location location;
+    /* location engine type. When the fix. when the type is set to
+       LOC_ENGINE_SRC_FUSED, the fix is the propagated/aggregated
+       reports from all engines running on the system (e.g.:
+       DR/SPE/PPE) based proprietary algorithm. To check which
+       location engine contributes to the fused output, check for
+       locOutputEngMask. */
+    LocOutputEngineType locOutputEngType;
+    /* when loc output eng type is set to fused, this field
+       indicates the set of engines contribute to the fix. */
+    PositioningEngineMask locOutputEngMask;
 } GnssLocationInfoNotification;
 
 typedef struct {
@@ -1133,6 +1176,20 @@ typedef std::function<void(
     GnssLocationInfoNotification gnssLocationInfoNotification
 )> gnssLocationInfoCallback;
 
+/* Gives default combined location information from all engines and
+   location information individually from selected engines.
+   This callback is only used when there are multiple engines
+   running in the system.
+
+   optional can be NULL
+
+   engineLocationsInfoCallback is called only during a tracking session
+   broadcasted to all clients, no matter if a session has started by client */
+typedef std::function<void(
+    uint32_t count,
+    GnssLocationInfoNotification* engineLocationInfoNotification
+)> engineLocationsInfoCallback;
+
 /* Used for addGeofences API, optional can be NULL
    geofenceBreachCallback is called when any number of geofences have a state change */
 typedef std::function<void(
@@ -1215,6 +1272,7 @@ typedef struct {
     gnssMeasurementsCallback gnssMeasurementsCb;     // optional
     batchingStatusCallback batchingStatusCb;         // optional
     locationSystemInfoCallback locationSystemInfoCb; // optional
+    engineLocationsInfoCallback engineLocationsInfoCb;     // optional
 } LocationCallbacks;
 
 #endif /* LOCATIONDATATYPES_H */

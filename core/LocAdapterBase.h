@@ -142,6 +142,11 @@ public:
                                      bool fromEngineHub = false,
                                      GnssDataNotification* pDataNotify = nullptr,
                                      int msInWeek = -1);
+    virtual void reportEnginePositionsEvent(unsigned int count,
+                                            EngineLocationInfo* locationArr) {
+        (void)count;
+        (void)locationArr;
+    }
     virtual void reportSvEvent(const GnssSvNotification& svNotify,
                                bool fromUlp=false, bool fromEngineHub=false);
     virtual void reportNmeaEvent(const char* nmea, size_t length, bool fromUlp=false);
