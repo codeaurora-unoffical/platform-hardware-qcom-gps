@@ -475,6 +475,16 @@ GnssAdapter::convertLocationInfo(GnssLocationInfoNotification& out,
         out.flags |= GNSS_LOCATION_INFO_TIME_UNC_BIT;
         out.timeUncMs = locationExtended.timeUncMs;
     }
+
+    if (GPS_LOCATION_EXTENDED_HAS_CALIBRATION_CONFIDENCE & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_CALIBRATION_CONFIDENCE_BIT;
+        out.calibrationConfidence = locationExtended.calibrationConfidence;
+    }
+
+    if (GPS_LOCATION_EXTENDED_HAS_CALIBRATION_STATUS & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_CALIBRATION_STATUS_BIT;
+        out.calibrationStatus = locationExtended.calibrationStatus;
+    }
 }
 
 
@@ -3772,26 +3782,28 @@ GnssAdapter::reportGnssMeasurementsEvent(const GnssMeasurements& gnssMeasurement
 {
     LOC_LOGD("%s]: msInWeek=%d", __func__, msInWeek);
 
-    struct MsgReportGnssMeasurementData : public LocMsg {
-        GnssAdapter& mAdapter;
-        GnssMeasurements mGnssMeasurements;
-        GnssMeasurementsNotification mMeasurementsNotify;
-        inline MsgReportGnssMeasurementData(GnssAdapter& adapter,
-                                            const GnssMeasurements& gnssMeasurements,
-                                            int msInWeek) :
-                LocMsg(),
-                mAdapter(adapter),
-                mMeasurementsNotify(gnssMeasurements.gnssMeasNotification) {
-            if (-1 != msInWeek) {
-                mAdapter.getAgcInformation(mMeasurementsNotify, msInWeek);
+    if (0 != gnssMeasurements.gnssMeasNotification.count) {
+        struct MsgReportGnssMeasurementData : public LocMsg {
+            GnssAdapter& mAdapter;
+            GnssMeasurements mGnssMeasurements;
+            GnssMeasurementsNotification mMeasurementsNotify;
+            inline MsgReportGnssMeasurementData(GnssAdapter& adapter,
+                                                const GnssMeasurements& gnssMeasurements,
+                                                int msInWeek) :
+                    LocMsg(),
+                    mAdapter(adapter),
+                    mMeasurementsNotify(gnssMeasurements.gnssMeasNotification) {
+                if (-1 != msInWeek) {
+                    mAdapter.getAgcInformation(mMeasurementsNotify, msInWeek);
+                }
             }
-        }
-        inline virtual void proc() const {
-            mAdapter.reportGnssMeasurementData(mMeasurementsNotify);
-        }
-    };
+            inline virtual void proc() const {
+                mAdapter.reportGnssMeasurementData(mMeasurementsNotify);
+            }
+        };
 
-    sendMsg(new MsgReportGnssMeasurementData(*this, gnssMeasurements, msInWeek));
+        sendMsg(new MsgReportGnssMeasurementData(*this, gnssMeasurements, msInWeek));
+    }
     mEngHubProxy->gnssReportSvMeasurement(gnssMeasurements.gnssSvMeasurementSet);
 }
 
