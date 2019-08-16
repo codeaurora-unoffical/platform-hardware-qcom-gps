@@ -74,6 +74,7 @@ GnssAdapter::GnssAdapter() :
     mControlCallbacks(),
     mPowerVoteId(0),
     mNmeaMask(0),
+    mLocConfigInfo{},
     mNiData(),
     mAgpsManager(),
     mAgpsCbInfo(),
@@ -767,14 +768,29 @@ GnssAdapter::setConfigCommand()
                     adapter.mLocApi->setNMEATypesSync(mask);
                 }
 
-                adapter.mLocApi->setXtraVersionCheckSync(gpsConf.XTRA_VERSION_CHECK);
+                // load tunc Confi from config file if it has not been set
+                if (adapter.mLocConfigInfo.tuncConfigInfo.isValid == false) {
+                    adapter.mLocConfigInfo.tuncConfigInfo.isValid = true;
+                    adapter.mLocConfigInfo.tuncConfigInfo.enable =
+                        (gpsConf.CONSTRAINED_TIME_UNCERTAINTY_ENABLED == 1);
+                    adapter.mLocConfigInfo.tuncConfigInfo.tuncThresholdMs =
+                        (float)gpsConf.CONSTRAINED_TIME_UNCERTAINTY_THRESHOLD;
+                    adapter.mLocConfigInfo.tuncConfigInfo.energyBudget =
+                        gpsConf.CONSTRAINED_TIME_UNCERTAINTY_ENERGY_BUDGET;
+                }
 
                 adapter.mLocApi->setConstrainedTuncMode(
-                        gpsConf.CONSTRAINED_TIME_UNCERTAINTY_ENABLED == 1,
-                        (float)gpsConf.CONSTRAINED_TIME_UNCERTAINTY_THRESHOLD,
-                        gpsConf.CONSTRAINED_TIME_UNCERTAINTY_ENERGY_BUDGET);
+                        adapter.mLocConfigInfo.tuncConfigInfo.enable,
+                        adapter.mLocConfigInfo.tuncConfigInfo.tuncThresholdMs,
+                        adapter.mLocConfigInfo.tuncConfigInfo.energyBudget);
+
+                if (adapter.mLocConfigInfo.paceConfigInfo.isValid == false) {
+                    adapter.mLocConfigInfo.paceConfigInfo.isValid = true;
+                    adapter.mLocConfigInfo.paceConfigInfo.enable =
+                        (gpsConf.POSITION_ASSISTED_CLOCK_ESTIMATOR_ENABLED==1);
+                }
                 adapter.mLocApi->setPositionAssistedClockEstimatorMode(
-                        gpsConf.POSITION_ASSISTED_CLOCK_ESTIMATOR_ENABLED == 1);
+                        adapter.mLocConfigInfo.paceConfigInfo.enable);
 
                 if (sapConf.GYRO_BIAS_RANDOM_WALK_VALID ||
                     sapConf.ACCEL_RANDOM_WALK_SPECTRAL_DENSITY_VALID ||
@@ -2589,7 +2605,8 @@ GnssAdapter::reportPosition(const UlpLocation& ulpLocation,
 
         // if engine hub is running and the fix is from sensor, e.g.: DRE,
         // inject DRE fix to modem
-        if ((1 == ContextBase::mGps_conf.POSITION_ASSISTED_CLOCK_ESTIMATOR_ENABLED) &&
+        if ((true == mLocConfigInfo.paceConfigInfo.isValid &&
+             true == mLocConfigInfo.paceConfigInfo.enable) &&
                 (true == initEngHubProxy()) && (LOC_POS_TECH_MASK_SENSORS & techMask)) {
             mLocApi->injectPosition(locationInfo, false);
         }
@@ -3974,6 +3991,102 @@ GnssAdapter::getGnssEnergyConsumedCommand(GnssEnergyConsumedCallback energyConsu
     };
 
     sendMsg(new MsgGetGnssEnergyConsumed(*this, *mLocApi, energyConsumedCb));
+}
+
+void
+GnssAdapter::setConstrainedTunc(bool enable, float tuncConstraint,
+                                uint32_t energyBudget, uint32_t sessionId) {
+
+    mLocConfigInfo.tuncConfigInfo.isValid = true;
+    mLocConfigInfo.tuncConfigInfo.enable = enable;
+    mLocConfigInfo.tuncConfigInfo.tuncThresholdMs = tuncConstraint;
+    mLocConfigInfo.tuncConfigInfo.energyBudget = energyBudget;
+
+    LocApiResponse* locApiResponse = nullptr;
+    if (sessionId != 0) {
+        locApiResponse =
+                new LocApiResponse(*getContext(),
+                                   [this, sessionId] (LocationError err) {
+                                    reportResponse(err, sessionId);});
+    }
+    mLocApi->setConstrainedTuncMode(
+            enable, tuncConstraint, energyBudget, locApiResponse);
+}
+
+uint32_t
+GnssAdapter::setConstrainedTuncCommand (bool enable, float tuncConstraint,
+                                        uint32_t energyBudget) {
+    uint32_t sessionId = generateSessionId();
+    LOC_LOGD("%s]: id %u", __func__, sessionId);
+
+    struct MsgEnableTUNC : public LocMsg {
+        GnssAdapter& mAdapter;
+        uint32_t mSessionId;
+        bool mEnable;
+        float mTuncConstraint;
+        uint32_t mEnergyBudget;
+
+        inline MsgEnableTUNC(GnssAdapter& adapter,
+                             uint32_t sessionId,
+                             bool enable,
+                             float tuncConstraint,
+                             uint32_t energyBudget) :
+            LocMsg(),
+            mAdapter(adapter),
+            mSessionId(sessionId),
+            mEnable(enable),
+            mTuncConstraint(tuncConstraint),
+            mEnergyBudget(energyBudget) {}
+        inline virtual void proc() const {
+            mAdapter.setConstrainedTunc(mEnable, mTuncConstraint,
+                                        mEnergyBudget, mSessionId);
+        }
+    };
+
+    sendMsg(new MsgEnableTUNC(*this, sessionId, enable,
+                              tuncConstraint, energyBudget));
+
+    return sessionId;
+}
+
+void
+GnssAdapter::setPositionAssistedClockEstimator(bool enable,
+                                               uint32_t sessionId) {
+
+    mLocConfigInfo.paceConfigInfo.isValid = true;
+    mLocConfigInfo.paceConfigInfo.enable = enable;
+    LocApiResponse* locApiResponse = nullptr;
+    if (sessionId != 0) {
+        locApiResponse =
+                new LocApiResponse(*getContext(),
+                                   [this, sessionId] (LocationError err) {
+                                   reportResponse(err, sessionId);});
+    }
+    mLocApi->setPositionAssistedClockEstimatorMode(enable, locApiResponse);
+}
+
+uint32_t
+GnssAdapter::setPositionAssistedClockEstimatorCommand(bool enable) {
+    uint32_t sessionId = generateSessionId();
+    LOC_LOGD("%s]: id %u", __func__, sessionId);
+
+    struct MsgEnablePACE : public LocMsg {
+        GnssAdapter& mAdapter;
+        uint32_t mSessionId;
+        bool mEnable;
+        inline MsgEnablePACE(GnssAdapter& adapter,
+                             uint32_t sessionId, bool enable) :
+            LocMsg(),
+            mAdapter(adapter),
+            mSessionId(sessionId),
+            mEnable(enable){}
+        inline virtual void proc() const {
+            mAdapter.setPositionAssistedClockEstimator(mEnable, mSessionId);
+        }
+    };
+
+    sendMsg(new MsgEnablePACE(*this, sessionId, enable));
+    return sessionId;
 }
 
 /* ==== Eng Hub Proxy ================================================================= */
