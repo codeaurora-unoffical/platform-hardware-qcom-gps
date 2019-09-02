@@ -144,6 +144,8 @@ class GnssAdapter : public LocAdapterBase {
     LocPosMode mLocPositionMode;
     GnssSvUsedInPosition mGnssSvIdUsedInPosition;
     bool mGnssSvIdUsedInPosAvail;
+    GnssSvMbUsedInPosition mGnssMbSvIdUsedInPosition;
+    bool mGnssMbSvIdUsedInPosAvail;
 
     /* ==== CONTROL ======================================================================== */
     LocationControlCallbacks mControlCallbacks;
@@ -340,9 +342,11 @@ public:
                                      const GpsLocationExtended& locationExtended,
                                      enum loc_sess_status status,
                                      LocPosTechMask techMask,
-                                     bool fromEngineHub = false,
                                      GnssDataNotification* pDataNotify = nullptr,
                                      int msInWeek = -1);
+    virtual void reportEnginePositionsEvent(unsigned int count,
+                                            EngineLocationInfo* locationArr);
+
     virtual void reportSvEvent(const GnssSvNotification& svNotify,
                                bool fromEngineHub=false);
     virtual void reportNmeaEvent(const char* nmea, size_t length);
@@ -373,6 +377,8 @@ public:
                         const GpsLocationExtended &locationExtended,
                         enum loc_sess_status status,
                         LocPosTechMask techMask);
+    void reportEnginePositions(unsigned int count,
+                               const EngineLocationInfo* locationArr);
     void reportSv(GnssSvNotification& svNotify);
     void reportNmea(const char* nmea, size_t length);
     void reportData(GnssDataNotification& dataNotify);

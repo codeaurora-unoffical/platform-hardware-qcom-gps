@@ -28,6 +28,7 @@
  */
 #ifndef _LOC_MISC_UTILS_H_
 #define _LOC_MISC_UTILS_H_
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -119,6 +120,27 @@ SIDE EFFECTS
    N/A
 ===========================================================================*/
 void* dlGetSymFromLib(void*& libHandle, const char* libName, const char* symName);
+
+/*===========================================================================
+FUNCTION getQTimerTickCount
+
+DESCRIPTION
+   This function is used to read the QTimer ticks count. This value is globally maintained and
+   must be the same across all processors on a target.
+
+DEPENDENCIES
+   N/A
+
+RETURN VALUE
+    uint64_t QTimer tick count
+
+SIDE EFFECTS
+   N/A
+===========================================================================*/
+
+
+uint64_t getQTimerTickCount();
+
 
 #ifdef __cplusplus
 }
