@@ -707,6 +707,7 @@ typedef struct {
     bool deleteAll;              // if true, delete all aiding data and ignore other params
     GnssAidingDataSv sv;         // SV specific aiding data
     GnssAidingDataCommon common; // common aiding data
+    PositioningEngineMask posEngineMask; // engines to perform the delete operation on.
 } GnssAidingData;
 
 typedef uint16_t DrCalibrationStatusMask;
@@ -1032,9 +1033,8 @@ typedef struct {
     // location engine type. When the fix. when the type is set to
     // LOC_ENGINE_SRC_FUSED, the fix is the propagated/aggregated
     // reports from all engines running on the system (e.g.:
-    // DR/SPE/PPE) based proprietary algorithm. To check which
-    // location engine contributes to the fused output, check for
-    // locOutputEngMask.
+    // DR/SPE/PPE). To check which location engine contributes to
+    // the fused output, check for locOutputEngMask.
     LocOutputEngineType locOutputEngType;
     // when loc output eng type is set to fused, this field
     // indicates the set of engines contribute to the fix.
