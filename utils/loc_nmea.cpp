@@ -656,8 +656,19 @@ void loc_nmea_generate_pos(const UlpLocation &location,
         pMarker = sentence;
         lengthRemaining = sizeof(sentence);
 
-        length = snprintf(pMarker, lengthRemaining, "$%sRMC,%02d%02d%02d.%02d,A," ,
-                          talker, utcHours, utcMinutes, utcSeconds,utcMSeconds/10);
+        bool validFix = ((0 != sv_cache_info.gps_used_mask) ||
+                (0 != sv_cache_info.glo_used_mask) ||
+                (0 != sv_cache_info.gal_used_mask) ||
+                (0 != sv_cache_info.qzss_used_mask) ||
+                (0 != sv_cache_info.bds_used_mask));
+
+        if (validFix) {
+            length = snprintf(pMarker, lengthRemaining, "$%sRMC,%02d%02d%02d.%02d,A," ,
+                              talker, utcHours, utcMinutes, utcSeconds,utcMSeconds/10);
+        } else {
+            length = snprintf(pMarker, lengthRemaining, "$%sRMC,%02d%02d%02d.%02d,V," ,
+                              talker, utcHours, utcMinutes, utcSeconds,utcMSeconds/10);
+        }
 
         if (length < 0 || length >= lengthRemaining)
         {
@@ -792,7 +803,7 @@ void loc_nmea_generate_pos(const UlpLocation &location,
         pMarker += length;
         lengthRemaining -= length;
 
-        if (!(location.gpsLocation.flags & LOC_GPS_LOCATION_HAS_LAT_LONG))
+        if ((!validFix) || (!(location.gpsLocation.flags & LOC_GPS_LOCATION_HAS_LAT_LONG)))
             // N means no fix
             length = snprintf(pMarker, lengthRemaining, "%c", 'N');
         else if (LOC_NAV_MASK_SBAS_CORRECTION_IONO & locationExtended.navSolutionMask)
@@ -803,6 +814,10 @@ void loc_nmea_generate_pos(const UlpLocation &location,
             length = snprintf(pMarker, lengthRemaining, "%c", 'E');
         else  // A means autonomous
             length = snprintf(pMarker, lengthRemaining, "%c", 'A');
+
+        pMarker += length;
+        lengthRemaining -= length;
+        length = snprintf(pMarker, lengthRemaining, ",%c", 'V');
 
         length = loc_nmea_put_checksum(sentence, sizeof(sentence));
         nmeaArraystr.push_back(sentence);
