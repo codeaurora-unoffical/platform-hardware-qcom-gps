@@ -70,6 +70,7 @@ typedef enum {
     LOCATION_HAS_VERTICAL_ACCURACY_BIT = (1<<5), // location has valid vertical accuracy
     LOCATION_HAS_SPEED_ACCURACY_BIT    = (1<<6), // location has valid speed accuracy
     LOCATION_HAS_BEARING_ACCURACY_BIT  = (1<<7), // location has valid bearing accuracy
+    LOCATION_HAS_SPOOF_MASK            = (1<<8), // location has valid spoof mask
 } LocationFlagsBits;
 
 typedef uint16_t LocationTechnologyMask;
@@ -79,6 +80,13 @@ typedef enum {
     LOCATION_TECHNOLOGY_WIFI_BIT     = (1<<2), // location was calculated using WiFi
     LOCATION_TECHNOLOGY_SENSORS_BIT  = (1<<3), // location was calculated using Sensors
 } LocationTechnologyBits;
+
+typedef uint32_t LocationSpoofMask;
+typedef enum {
+    LOCATION_POSTION_SPOOFED             = (1<<0), // location position spoofed
+    LOCATION_TIME_SPOOFED                = (1<<1), // location time spoofed
+    LOCATION_NAVIGATION_DATA_SPOOFED     = (1<<2), // location navigation data spoofed
+} LocationSpoofBits;
 
 typedef enum {
     LOCATION_RELIABILITY_NOT_SET = 0,
@@ -361,6 +369,8 @@ typedef enum {
     GNSS_SV_OPTIONS_HAS_EPHEMER_BIT = (1<<0),
     GNSS_SV_OPTIONS_HAS_ALMANAC_BIT = (1<<1),
     GNSS_SV_OPTIONS_USED_IN_FIX_BIT = (1<<2),
+    GNSS_SV_OPTIONS_HAS_CARRIER_FREQUENCY_BIT   = (1<<3),
+    GNSS_SV_OPTIONS_HAS_GNSS_SIGNAL_TYPE_BIT    = (1<<4)
 } GnssSvOptionsBits;
 
 typedef enum {
@@ -498,7 +508,7 @@ typedef enum {
     /** GALILEO E5A RF Band */
     GNSS_SIGNAL_GALILEO_E5A         = (1<<7),
     /** GALILEO E5B RF Band */
-    GNSS_SIGNAL_GALILIEO_E5B        = (1<<8),
+    GNSS_SIGNAL_GALILEO_E5B         = (1<<8),
     /** BEIDOU B1 RF Band */
     GNSS_SIGNAL_BEIDOU_B1           = (1<<9),
     /** BEIDOU B2 RF Band */
@@ -512,7 +522,19 @@ typedef enum {
     /** QZSS L5 RF Band */
     GNSS_SIGNAL_QZSS_L5             = (1<<14),
     /** SBAS L1 RF Band */
-    GNSS_SIGNAL_SBAS_L1             = (1<<15)
+    GNSS_SIGNAL_SBAS_L1             = (1<<15),
+    /** BEIDOU B1I RF Band */
+    GNSS_SIGNAL_BEIDOU_B1I          = (1<<16),
+    /** BEIDOU B1C RF Band */
+    GNSS_SIGNAL_BEIDOU_B1C          = (1<<17),
+    /** BEIDOU B2I RF Band */
+    GNSS_SIGNAL_BEIDOU_B2I          = (1<<18),
+    /** BEIDOU B2AI RF Band */
+    GNSS_SIGNAL_BEIDOU_B2AI         = (1<<19),
+    /** NAVIC L5 RF Band */
+    GNSS_SIGNAL_NAVIC_L5            = (1<<20),
+    /** BEIDOU B2A_Q RF Band */
+    GNSS_SIGNAL_BEIDOU_B2AQ         = (1<<21),
 } GnssSignalTypeBits;
 
 typedef enum
@@ -525,15 +547,13 @@ typedef enum
     /**< GALILEO satellite. */
     GNSS_LOC_SV_SYSTEM_SBAS                   = 3,
     /**< SBAS satellite. */
-    GNSS_LOC_SV_SYSTEM_COMPASS                = 4,
-    /**< COMPASS satellite. */
-    GNSS_LOC_SV_SYSTEM_GLONASS                = 5,
+    GNSS_LOC_SV_SYSTEM_GLONASS                = 4,
     /**< GLONASS satellite. */
-    GNSS_LOC_SV_SYSTEM_BDS                    = 6,
+    GNSS_LOC_SV_SYSTEM_BDS                    = 5,
     /**< BDS satellite. */
-    GNSS_LOC_SV_SYSTEM_QZSS                   = 7,
+    GNSS_LOC_SV_SYSTEM_QZSS                   = 6,
     /**< QZSS satellite. */
-    GNSS_LOC_SV_SYSTEM_MAX                    = 7,
+    GNSS_LOC_SV_SYSTEM_MAX                    = 6,
     /**< Max enum of valid SV system. */
 } Gnss_LocSvSystemEnumType;
 
@@ -642,6 +662,7 @@ typedef struct {
     float speedAccuracy;     // in meters/second
     float bearingAccuracy;   // in degrees (0 to 359.999)
     LocationTechnologyMask techMask;
+    LocationSpoofMask      spoofMask;
 } Location;
 
 // TBD: check whether we need all the types
@@ -897,7 +918,7 @@ typedef struct {
                                                   // in range of [0, 100]
     DrCalibrationStatusMask calibrationStatus;    // Sensor calibration status
 
-    // location engine type. When the fix. when the type is set to
+    // location engine type. When the type is set to
     // LOC_ENGINE_SRC_FUSED, the fix is the propagated/aggregated
     // reports from all engines running on the system (e.g.:
     // DR/SPE/PPE). To check which location engine contributes to
@@ -931,6 +952,7 @@ typedef struct {
     float elevation;   // elevation of SV (in degrees)
     float azimuth;     // azimuth of SV (in degrees)
     GnssSvOptionsMask gnssSvOptionsMask; // Bitwise OR of GnssSvOptionsBits
+    float carrierFrequencyHz; // carrier frequency of the signal tracked
     GnssSignalTypeMask gnssSignalTypeMask; // Specifies GNSS signal type
 } GnssSv;
 
