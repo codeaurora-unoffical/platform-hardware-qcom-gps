@@ -75,6 +75,8 @@ struct GnssInterface {
     void (*updateConnectionStatus)(bool connected, int8_t type);
     void (*getGnssEnergyConsumed)(GnssEnergyConsumedCallback energyConsumedCb);
     void (*injectLocationExt)(const GnssLocationInfoNotification &locationInfo);
+    uint32_t (*setConstrainedTunc) (bool enable, float tuncConstraint, uint32_t energyBudget);
+    uint32_t (*setPositionAssistedClockEstimator) (bool enable);
 };
 
 struct FlpInterface {

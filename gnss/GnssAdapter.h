@@ -76,6 +76,23 @@ typedef struct {
     uint32_t svIdOffset;
 } NmeaSvMeta;
 
+typedef struct {
+    bool isValid;
+    bool enable;
+    float tuncThresholdMs; // need to be specified if enable is true
+    uint32_t energyBudget; // need to be specified if enable is true
+} TuncConfigInfo;
+
+typedef struct {
+    bool isValid;
+    bool enable;
+} PaceConfigInfo;
+
+typedef struct {
+    TuncConfigInfo tuncConfigInfo;
+    PaceConfigInfo paceConfigInfo;
+} LocIntegrationConfigInfo;
+
 using namespace loc_core;
 
 namespace loc_core {
@@ -109,6 +126,7 @@ class GnssAdapter : public LocAdapterBase {
     LocationControlCallbacks mControlCallbacks;
     uint32_t mPowerVoteId;
     uint32_t mNmeaMask;
+    LocIntegrationConfigInfo mLocConfigInfo;
 
     /* ==== NI ============================================================================= */
     NiData mNiData;
@@ -206,6 +224,10 @@ public:
     bool updateTracking(LocationAPI* client, uint32_t sessionId,
         const LocationOptions& updatedOptions, const LocationOptions& oldOptions);
 
+    void setConstrainedTunc(bool enable, float tuncConstraint,
+                            uint32_t energyBudget, uint32_t sessionId);
+    void setPositionAssistedClockEstimator(bool enable, uint32_t sessionId);
+
     /* ==== NI ============================================================================= */
     /* ======== COMMANDS ====(Called from Client Thread)==================================== */
     void gnssNiResponseCommand(LocationAPI* client, uint32_t id, GnssNiResponse response);
@@ -236,6 +258,9 @@ public:
     void dataConnClosedCommand(AGpsExtType agpsType);
     void dataConnFailedCommand(AGpsExtType agpsType);
     void getGnssEnergyConsumedCommand(GnssEnergyConsumedCallback energyConsumedCb);
+    uint32_t setConstrainedTuncCommand (bool enable, float tuncConstraint,
+                                        uint32_t energyBudget);
+    uint32_t setPositionAssistedClockEstimatorCommand (bool enable);
 
     /* ======== RESPONSES ================================================================== */
     void reportResponse(LocationError err, uint32_t sessionId);

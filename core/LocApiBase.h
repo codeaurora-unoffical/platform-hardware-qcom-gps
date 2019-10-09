@@ -271,10 +271,12 @@ public:
 
     virtual LocationError setXtraVersionCheckSync(uint32_t check);
 
-    virtual LocationError setConstrainedTuncMode(bool enabled,
-                                                 float tuncConstraint,
-                                                 uint32_t energyBudget);
-    virtual LocationError setPositionAssistedClockEstimatorMode(bool enabled);
+    virtual void setConstrainedTuncMode(bool enabled,
+                                        float tuncConstraint,
+                                        uint32_t energyBudget,
+                                        LocApiResponse* adapterResponse=nullptr);
+    virtual void setPositionAssistedClockEstimatorMode(bool enabled,
+                                                       LocApiResponse* adapterResponse=nullptr);
     virtual LocationError getGnssEnergyConsumed();
 
 };
