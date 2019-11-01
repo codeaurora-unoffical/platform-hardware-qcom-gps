@@ -1466,7 +1466,7 @@ void loc_nmea_generate_sv(const GnssSvNotification &svNotify,
                     (svNotify.gnssSvs[svNumber - 1].gnssSvOptionsMask &
                       GNSS_SV_OPTIONS_USED_IN_FIX_BIT))
             {
-                sv_cache_info.gps_used_mask |= (1 << (svNotify.gnssSvs[svNumber - 1].svId - 1));
+                sv_cache_info.gps_used_mask |= (1ULL << (svNotify.gnssSvs[svNumber - 1].svId - 1));
             }
             sv_cache_info.gps_count++;
         }
@@ -1478,7 +1478,7 @@ void loc_nmea_generate_sv(const GnssSvNotification &svNotify,
                     (svNotify.gnssSvs[svNumber - 1].gnssSvOptionsMask &
                       GNSS_SV_OPTIONS_USED_IN_FIX_BIT))
             {
-                sv_cache_info.glo_used_mask |= (1 << (svNotify.gnssSvs[svNumber - 1].svId - 1));
+                sv_cache_info.glo_used_mask |= (1ULL << (svNotify.gnssSvs[svNumber - 1].svId - 1));
             }
             sv_cache_info.glo_count++;
         }
@@ -1490,7 +1490,7 @@ void loc_nmea_generate_sv(const GnssSvNotification &svNotify,
                     (svNotify.gnssSvs[svNumber - 1].gnssSvOptionsMask &
                       GNSS_SV_OPTIONS_USED_IN_FIX_BIT))
             {
-                sv_cache_info.gal_used_mask |= (1 << (svNotify.gnssSvs[svNumber - 1].svId - 1));
+                sv_cache_info.gal_used_mask |= (1ULL << (svNotify.gnssSvs[svNumber - 1].svId - 1));
             }
             sv_cache_info.gal_count++;
         }
@@ -1502,7 +1502,7 @@ void loc_nmea_generate_sv(const GnssSvNotification &svNotify,
                 (svNotify.gnssSvs[svNumber - 1].gnssSvOptionsMask &
                   GNSS_SV_OPTIONS_USED_IN_FIX_BIT))
             {
-                sv_cache_info.qzss_used_mask |= (1 << (svNotify.gnssSvs[svNumber - 1].svId - 1));
+                sv_cache_info.qzss_used_mask |= (1ULL << (svNotify.gnssSvs[svNumber - 1].svId - 1));
             }
             sv_cache_info.qzss_count++;
         }
@@ -1514,7 +1514,7 @@ void loc_nmea_generate_sv(const GnssSvNotification &svNotify,
                 (svNotify.gnssSvs[svNumber - 1].gnssSvOptionsMask &
                   GNSS_SV_OPTIONS_USED_IN_FIX_BIT))
             {
-                sv_cache_info.bds_used_mask |= (1 << (svNotify.gnssSvs[svNumber - 1].svId - 1));
+                sv_cache_info.bds_used_mask |= (1ULL << (svNotify.gnssSvs[svNumber - 1].svId - 1));
             }
             sv_cache_info.bds_count++;
         }
