@@ -377,7 +377,7 @@ typedef uint32_t LocNavSolutionMask;
 #define QZSS_SV_PRN_MIN     193
 #define QZSS_SV_PRN_MAX     197
 #define BDS_SV_PRN_MIN      201
-#define BDS_SV_PRN_MAX      235
+#define BDS_SV_PRN_MAX      237
 #define GAL_SV_PRN_MIN      301
 #define GAL_SV_PRN_MAX      336
 
@@ -454,41 +454,6 @@ typedef uint8_t CarrierPhaseAmbiguityType;
 #define CARRIER_PHASE_AMBIGUITY_RESOLUTION_NONE ((CarrierPhaseAmbiguityType)0)
 #define CARRIER_PHASE_AMBIGUITY_RESOLUTION_FLOAT ((CarrierPhaseAmbiguityType)1)
 #define CARRIER_PHASE_AMBIGUITY_RESOLUTION_FIXED ((CarrierPhaseAmbiguityType)2)
-
-/** GNSS Signal Type and RF Band */
-typedef uint32_t GnssSignalTypeMask;
-/** GPS L1CA Signal */
-#define GNSS_SIGNAL_GPS_L1CA     ((GnssSignalTypeMask)0x00000001ul)
-/** GPS L1C Signal */
-#define GNSS_SIGNAL_GPS_L1C      ((GnssSignalTypeMask)0x00000002ul)
-/** GPS L2 RF Band */
-#define GNSS_SIGNAL_GPS_L2       ((GnssSignalTypeMask)0x00000004ul)
-/** GPS L5 RF Band */
-#define GNSS_SIGNAL_GPS_L5       ((GnssSignalTypeMask)0x00000008ul)
-/** GLONASS G1 (L1OF) RF Band */
-#define GNSS_SIGNAL_GLONASS_G1   ((GnssSignalTypeMask)0x00000010ul)
-/** GLONASS G2 (L2OF) RF Band */
-#define GNSS_SIGNAL_GLONASS_G2   ((GnssSignalTypeMask)0x00000020ul)
-/** GALILEO E1 RF Band */
-#define GNSS_SIGNAL_GALILEO_E1   ((GnssSignalTypeMask)0x00000040ul)
-/** GALILEO E5A RF Band */
-#define GNSS_SIGNAL_GALILEO_E5A  ((GnssSignalTypeMask)0x00000080ul)
-/** GALILEO E5B RF Band */
-#define GNSS_SIGNAL_GALILIEO_E5B ((GnssSignalTypeMask)0x00000100ul)
-/** BEIDOU B1 RF Band */
-#define GNSS_SIGNAL_BEIDOU_B1    ((GnssSignalTypeMask)0x00000200ul)
-/** BEIDOU B2 RF Band */
-#define GNSS_SIGNAL_BEIDOU_B2    ((GnssSignalTypeMask)0x00000400ul)
-/** QZSS L1CA RF Band */
-#define GNSS_SIGNAL_QZSS_L1CA      ((GnssSignalTypeMask)0x00000800ul)
-/** QZSS L1S RF Band */
-#define GNSS_SIGNAL_QZSS_L1S      ((GnssSignalTypeMask)0x00001000ul)
-/** QZSS L2 RF Band */
-#define GNSS_SIGNAL_QZSS_L2      ((GnssSignalTypeMask)0x00002000ul)
-/** QZSS L5 RF Band */
-#define GNSS_SIGNAL_QZSS_L5      ((GnssSignalTypeMask)0x00004000ul)
-/** SBAS L1 RF Band */
-#define GNSS_SIGNAL_SBAS_L1      ((GnssSignalTypeMask)0x00008000ul)
 
 typedef uint16_t GnssMeasUsageStatusBitMask;
 /** Used in fix */

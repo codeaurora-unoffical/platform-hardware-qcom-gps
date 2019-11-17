@@ -1425,7 +1425,9 @@ GnssAdapter::updateClientsEventMask()
 {
     LOC_API_ADAPTER_EVENT_MASK_T mask = 0;
     for (auto it=mClientData.begin(); it != mClientData.end(); ++it) {
-        if (it->second.trackingCb != nullptr || it->second.gnssLocationInfoCb != nullptr) {
+        if (it->second.trackingCb != nullptr ||
+            it->second.gnssLocationInfoCb != nullptr ||
+            it->second.engineLocationsInfoCb != nullptr) {
             mask |= LOC_API_ADAPTER_BIT_PARSED_POSITION_REPORT;
         }
         if (it->second.gnssNiCb != nullptr) {
@@ -1652,17 +1654,21 @@ GnssAdapter::eraseClient(LocationAPI* client)
 }
 
 bool
-GnssAdapter::hasTrackingCallback(LocationAPI* client)
+GnssAdapter::hasCallbacksToStartTracking(LocationAPI* client)
 {
+    bool allowed = false;
     auto it = mClientData.find(client);
-    return (it != mClientData.end() && (it->second.trackingCb || it->second.gnssLocationInfoCb));
-}
-
-bool
-GnssAdapter::hasMeasurementsCallback(LocationAPI* client)
-{
-    auto it = mClientData.find(client);
-    return (it != mClientData.end() && it->second.gnssMeasurementsCb);
+    if (it != mClientData.end()) {
+        if (it->second.trackingCb || it->second.gnssLocationInfoCb ||
+            it->second.engineLocationsInfoCb || it->second.gnssMeasurementsCb) {
+            allowed = true;
+        } else {
+            LOC_LOGi("missing right callback to start tracking")
+        }
+    } else {
+        LOC_LOGi("client %p not found", client)
+    }
+    return allowed;
 }
 
 bool
@@ -1777,8 +1783,7 @@ GnssAdapter::startTrackingCommand(LocationAPI* client, LocationOptions& options)
             mOptions(options) {}
         inline virtual void proc() const {
             LocationError err = LOCATION_ERROR_SUCCESS;
-            if (!mAdapter.hasTrackingCallback(mClient) &&
-                !mAdapter.hasMeasurementsCallback(mClient)) {
+            if (!mAdapter.hasCallbacksToStartTracking(mClient)) {
                 err = LOCATION_ERROR_CALLBACK_MISSING;
             } else if (0 == mOptions.size) {
                 err = LOCATION_ERROR_INVALID_PARAMETER;
@@ -2411,6 +2416,8 @@ GnssAdapter::disableCommand(uint32_t id)
 
 }
 
+// This function is only called by QMI loc api or ULP
+// engine hub positionEvent will go to reportEnginePositionEvent
 void
 GnssAdapter::reportPositionEvent(const UlpLocation& ulpLocation,
                                  const GpsLocationExtended& locationExtended,
@@ -2424,12 +2431,20 @@ GnssAdapter::reportPositionEvent(const UlpLocation& ulpLocation,
     LOC_LOGD("%s]: fromUlp %u, from engine hub %u, status %u, tech mask 0x%x",
              __func__, fromUlp, fromEngineHub, status, techMask);
 
-    // if this event is called from QMI LOC API, then try to call into ULP and return if successfull
-    // if the position is called from ULP or engine hub, then send it out directly
-    if (!fromUlp && !fromEngineHub) {
-        // report QMI position (both propagated and unpropagated) to engine hub,
-        // and engine hub will be distributing it to the registered plugins
-        mEngHubProxy->gnssReportPosition(ulpLocation, locationExtended, status);
+    // The position report is SPE report from QMI LOC API
+    if (!fromUlp) {
+        if (true == initEngHubProxy()) {
+            // send the SPE fix to engine hub
+            mEngHubProxy->gnssReportPosition(ulpLocation, locationExtended, status);
+            // report out SPE fix if it is not propagated to engine callback
+            if (false == ulpLocation.unpropagatedPosition) {
+                EngineLocationInfo engLocationInfo = {};
+                engLocationInfo.location = ulpLocation;
+                engLocationInfo.locationExtended = locationExtended;
+                engLocationInfo.sessionStatus = status;
+                reportEnginePositionsEvent(1, &engLocationInfo);
+            }
+        }
 
         if (true == ulpLocation.unpropagatedPosition) {
             return;
@@ -2455,7 +2470,6 @@ GnssAdapter::reportPositionEvent(const UlpLocation& ulpLocation,
     // case 1: fix is from ULP and engine hub is not loaded, queue the msg
     // case 2: fix is from engine hub, queue the msg
     // when message is queued, the position can be dispatched to requesting client
-
     struct MsgReportPosition : public LocMsg {
         GnssAdapter& mAdapter;
         const UlpLocation mUlpLocation;
@@ -2761,7 +2775,7 @@ GnssAdapter::reportSv(GnssSvNotification& svNotify)
 
         // If SV ID was used in previous position fix, then set USED_IN_FIX
         // flag, else clear the USED_IN_FIX flag.
-        if (svUsedIdMask & (1 << (gnssSvId - 1))) {
+        if (svUsedIdMask & (1ULL << (gnssSvId - 1))) {
             svNotify.gnssSvs[i].gnssSvOptionsMask |= GNSS_SV_OPTIONS_USED_IN_FIX_BIT;
         }
     }
