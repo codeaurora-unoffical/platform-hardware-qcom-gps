@@ -173,6 +173,10 @@ bool LocIpc::send(const char name[], const uint8_t data[], uint32_t length) {
         LOC_LOGe("create socket error. reason:%s", strerror(errno));
         return false;
     }
+    timeval timeout;
+    timeout.tv_sec = 2;
+    timeout.tv_usec = 0;
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 
     struct sockaddr_un addr = { .sun_family = AF_UNIX };
     snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", name);
