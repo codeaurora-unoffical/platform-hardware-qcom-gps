@@ -385,7 +385,17 @@ typedef uint64_t GpsLocationExtendedFlags;
 #define GPS_LOCATION_EXTENDED_HAS_OUTPUT_ENG_TYPE       0x2000000000
  /** GpsLocationExtended has the engine mask that indicates the
   *     set of engines contribute to the fix. */
-#define GPS_LOCATION_EXTENDED_HAS_OUTPUT_ENG_MASK       0x4000000000
+#define GPS_LOCATION_EXTENDED_HAS_OUTPUT_ENG_MASK              0x4000000000
+/** GpsLocationExtended has dgnss correction source */
+#define GPS_LOCATION_EXTENDED_HAS_DGNSS_CORRECTION_SOURCE_TYPE 0x8000000000
+/** GpsLocationExtended has dgnss correction source ID */
+#define GPS_LOCATION_EXTENDED_HAS_DGNSS_CORRECTION_SOURCE_ID   0x10000000000
+/** GpsLocationExtended has dgnss constellation usage   */
+#define GPS_LOCATION_EXTENDED_HAS_DGNSS_CONSTELLATION_USAGE    0x20000000000
+/** GpsLocationExtended has dgnss ref station Id */
+#define GPS_LOCATION_EXTENDED_HAS_DGNSS_REF_STATION_ID         0x40000000000
+/** GpsLocationExtended has dgnss data age */
+#define GPS_LOCATION_EXTENDED_HAS_DGNSS_DATA_AGE               0x80000000000
 
 typedef uint32_t LocNavSolutionMask;
 /* Bitmask to specify whether SBAS ionospheric correction is used  */
@@ -570,6 +580,13 @@ typedef uint8_t CarrierPhaseAmbiguityType;
 #define CARRIER_PHASE_AMBIGUITY_RESOLUTION_FLOAT ((CarrierPhaseAmbiguityType)1)
 #define CARRIER_PHASE_AMBIGUITY_RESOLUTION_FIXED ((CarrierPhaseAmbiguityType)2)
 
+
+typedef enum {
+  LOC_DGNSS_CORR_SOURCE_TYPE_INVALID = 0, /**<  Invalid DGNSS correction source type \n */
+  LOC_DGNSS_CORR_SOURCE_TYPE_RTCM = 1, /**<  DGNSS correction source type RTCM \n */
+  LOC_DGNSS_CORR_SOURCE_TYPE_3GPP = 2, /**<  DGNSS correction source type 3GPP \n */
+}LocDgnssCorrectionSourceType;
+
 typedef uint16_t GnssMeasUsageStatusBitMask;
 /** Used in fix */
 #define GNSS_MEAS_USED_IN_PVT ((GnssMeasUsageStatusBitMask)0x00000001ul)
@@ -618,13 +635,15 @@ typedef struct {
     /** Specifies GNSS Constellation Type
         Mandatory Field*/
     Gnss_LocSvSystemEnumType gnssConstellation;
-    /**  GNSS SV ID.
-         For GPS:      1 to 32
-         For GLONASS:  65 to 96. When slot-number to SV ID mapping is unknown, set as 255.
-         For SBAS:     120 to 151
-         For QZSS-L1CA:193 to 197
-         For BDS:      201 to 237
-         For GAL:      301 to 336 */
+    /**  Unique SV Identifier.
+     *   SV Range for supported constellation is specified as below:
+     *    - For GPS:     1 to 32
+     *    - For GLONASS: 65 to 96
+     *    - For SBAS:    120 to 158 and 183 to 191
+     *    - For QZSS:    193 to 197
+     *    - For BDS:     201 to 237
+     *    - For GAL:     301 to 336
+     *    - For NAVIC:   401 to 414 */
     uint16_t gnssSvId;
     /** GLONASS frequency number + 7.
         Valid only for a GLONASS system and
@@ -758,15 +777,34 @@ typedef struct {
     /** Sensor calibration confidence percent. Range: 0 - 100 */
     uint8_t calibrationConfidence;
     DrCalibrationStatusMask calibrationStatus;
-    /* location engine type. When the fix. when the type is set to
+    /** location engine type. When the fix. when the type is set to
         LOC_ENGINE_SRC_FUSED, the fix is the propagated/aggregated
         reports from all engines running on the system (e.g.:
         DR/SPE/PPE). To check which location engine contributes to
         the fused output, check for locOutputEngMask. */
     LocOutputEngineType locOutputEngType;
-    /* when loc output eng type is set to fused, this field
+    /** when loc output eng type is set to fused, this field
         indicates the set of engines contribute to the fix. */
     PositioningEngineMask locOutputEngMask;
+
+    /**  DGNSS Correction Source for position report: RTCM, 3GPP
+     *   etc. */
+    LocDgnssCorrectionSourceType dgnssCorrectionSourceType;
+
+    /**  If DGNSS is used, the SourceID is a 32bit number identifying
+     *   the DGNSS source ID */
+    uint32_t dgnssCorrectionSourceID;
+
+    /** If DGNSS is used, which constellation was DGNSS used for to
+     *  produce the pos report. */
+    GnssConstellationTypeMask dgnssConstellationUsage;
+
+    /** If DGNSS is used, DGNSS Reference station ID used for
+     *  position report */
+    uint16_t dgnssRefStationId;
+
+    /**  If DGNSS is used, DGNSS data age in milli-seconds  */
+    uint32_t dgnssDataAgeMsec;
 } GpsLocationExtended;
 
 enum loc_sess_status {
@@ -1227,6 +1265,25 @@ typedef enum
     /**< SV is being tracked */
 }Gnss_LocSvSearchStatusEnumT;
 
+typedef uint32_t LocSvDgnssMeasStatusMask;
+#define LOC_MASK_DGNSS_EPOCH_TIME_VALID      0x1  /**<  DGNSS Epoch time is valid  */
+#define LOC_MASK_DGNSS_MEAS_STATUS_PR_VALID  0x2  /**<  Pseudo Range correction is valid  */
+#define LOC_MASK_DGNSS_MEAS_STATUS_PRR_VALID 0x4  /**<  Pseudo Range rate correction is valid  */
+
+typedef struct {
+  LocSvDgnssMeasStatusMask dgnssMeasStatus;
+  /**<   Bitmask indicating the DGNSS SV measurement status. */
+
+  uint32_t diffDataEpochTimeMsec;
+  /**<   Age of differential data in Milli Seconds with respect to the Measurement time. */
+
+  float prCorrMeters;
+  /**<   Pseudo Range correction in meters. */
+
+  float prrCorrMetersPerSec;
+  /**<  Pseudo Range rate correction in meters per second. */
+} Gnss_LocDgnssSVMeasurement;
+
 typedef struct
 {
     uint32_t                          size;
@@ -1234,15 +1291,9 @@ typedef struct
     // 0 signal type mask indicates invalid value
     GnssSignalTypeMask              gnssSignalTypeMask;
     uint16_t                        gnssSvId;
-    /**< GNSS SV ID.
-         \begin{itemize1}
-         \item Range:  \begin{itemize1}
-           \item For GPS:      1 to 32
-           \item For GLONASS:  1 to 32
-           \item For SBAS:     120 to 151
-           \item For BDS:      201 to 237
-         \end{itemize1} \end{itemize1}
-        The GPS and GLONASS SVs can be disambiguated using the system field.
+    /** Unique SV Identifier.
+     *  For SV Range of supported constellation, please refer to the
+     *  comment section of gnssSvId in GpsMeasUsageInfo.
     */
     uint8_t                         gloFrequency;
     /**< GLONASS frequency number + 7 \n
@@ -1366,7 +1417,8 @@ typedef struct
 
     float                           carrierPhaseUnc;
 
-
+    /** < DGNSS Measurements Report for SVs */
+    Gnss_LocDgnssSVMeasurement   dgnssSvMeas;
 } Gnss_SVMeasurementStructType;
 
 
@@ -1393,7 +1445,9 @@ typedef uint64_t GpsSvMeasHeaderFlags;
 #define GNSS_SV_MEAS_HEADER_HAS_QZSS_SYSTEM_TIME_EXT       0x00080000
 #define GNSS_SV_MEAS_HEADER_HAS_GLO_SYSTEM_TIME_EXT        0x00100000
 #define GNSS_SV_MEAS_HEADER_HAS_REF_COUNT_TICKS            0x00200000
-
+#define GNSS_SV_MEAS_HEADER_HAS_DGNSS_CORRECTION_SOURCE_TYPE  0x00400000
+#define GNSS_SV_MEAS_HEADER_HAS_DGNSS_CORRECTION_SOURCE_ID    0x00800000
+#define GNSS_SV_MEAS_HEADER_HAS_DGNSS_REF_STATION_ID          0x001000000
 
 typedef struct
 {
@@ -1433,8 +1487,21 @@ typedef struct
     /** GLONASS system RTC time information. */
     Gnss_LocGnssTimeExtStructType               gloSystemTimeExt;
 
-    /* Receiver tick at frame count */
+    /** Receiver tick at frame count */
     uint64_t                                    refCountTicks;
+
+    /** DGNSS corrections source type RTCM, 3GPP etc, if DGNSS was
+     *  used for these measurements. */
+    LocDgnssCorrectionSourceType                dgnssCorrectionSourceType;
+
+    /** DGNSS SourceID: 32bit number identifying the DGNSS source
+     *  ID, if DGNSS was used for these measurements. */
+    uint32_t                                    dgnssCorrectionSourceID;
+
+    /** DGNSS Ref station ID: 32bit number identifying the DGNSS
+     *  ref station ID, if DGNSS was used for these measurements. */
+    uint16_t                                    dgnssRefStationId;
+
 } GnssSvMeasurementHeader;
 
 typedef struct {
@@ -1474,12 +1541,12 @@ typedef struct
 {
     uint32_t      size;
     uint16_t     gnssSvId;
-    /* GPS: 1-32, GLO: 65-96, 0: Invalid,
-       SBAS: 120-151, BDS:201-237,GAL:301 to 336
-       All others are reserved
+    /** Unique SV Identifier.
+     *  For SV Range of supported constellation, please refer to the
+     *  comment section of gnssSvId in GpsMeasUsageInfo.
     */
     int8_t      freqNum;
-    /* Freq index, only valid if u_SysInd is GLO */
+    /** Freq index, only valid if u_SysInd is GLO */
 
     GnssSvPolyStatusMaskValidity svPolyStatusMaskValidity;
     GnssSvPolyStatusMask         svPolyStatusMask;
@@ -1549,15 +1616,10 @@ typedef enum {
 
 typedef struct {
     uint16_t gnssSvId;
-    /**<   GNSS SV ID.
-      - Type: uint16
-      \begin{itemize1}
-      \item    Range:    \begin{itemize1}
-        \item    For GPS:     1 to 32
-        \item    For QZSS:    193 to 197
-        \item    For BDS:     201 to 237
-        \item    For GAL:     301 to 336
-      \vspace{-0.18in} \end{itemize1} \end{itemize1} */
+    /** Unique SV Identifier.
+     *  For SV Range of supported constellation, please refer to the
+     *  comment section of gnssSvId in GpsMeasUsageInfo.
+     */
 
     GnssEphAction updateAction;
     /**<   Specifies the action and source of ephemeris. \n
@@ -2146,7 +2208,10 @@ enum PowerStateType {
 #define EAP_LOC_CLIENT_DIR             "/data/vendor/location/extap_locclient/"
 
 #define LOC_CLIENT_NAME_PREFIX         "toclient"
-#define LOC_INTAPI_NAME_PREFIX         "toIntapiClient"
+// Please note that the socket name for all location hal daemon client need
+// to start with LOC_CLIENT_NAME_PREFIX so that upon hal daemon restarts,
+// every client can get the notification that hal daemon has restarted.
+#define LOC_INTAPI_NAME_PREFIX         LOC_CLIENT_NAME_PREFIX "_intapi"
 
 #ifdef __cplusplus
 }
