@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -245,6 +245,8 @@ public:
     void eraseClient(LocationAPI* client);
     void notifyClientOfCachedLocationSystemInfo(LocationAPI* client,
                                                 const LocationCallbacks& callbacks);
+    void requestSvPolyForClient(LocationAPI* client,
+                                const LocationCallbacks& callbacks);
     void updateClientsEventMask();
     void stopClientSessions(LocationAPI* client);
     LocationCallbacks getClientCallbacks(LocationAPI* client);
@@ -428,6 +430,7 @@ public:
     void reportData(GnssDataNotification& dataNotify);
     bool requestNiNotify(const GnssNiNotification& notify, const void* data);
     void reportGnssMeasurementData(const GnssMeasurementsNotification& measurements);
+    void reportSvPolynomial(const GnssSvPolynomial &svPolynomial);
     void reportGnssSvIdConfig(const GnssSvIdConfig& config);
     void reportGnssSvTypeConfig(const GnssSvTypeConfig& config);
     void requestOdcpi(const OdcpiRequestInfo& request);
@@ -463,7 +466,7 @@ public:
     static bool convertToGnssSvIdConfig(
             const std::vector<GnssSvIdSource>& blacklistedSvIds, GnssSvIdConfig& config);
     static void convertFromGnssSvIdConfig(
-            const GnssSvIdConfig& svConfig, GnssConfig& config);
+            const GnssSvIdConfig& svConfig, std::vector<GnssSvIdSource>& blacklistedSvIds);
     static void convertGnssSvIdMaskToList(
             uint64_t svIdMask, std::vector<GnssSvIdSource>& svIds,
             GnssSvId initialSvId, GnssSvType svType);
