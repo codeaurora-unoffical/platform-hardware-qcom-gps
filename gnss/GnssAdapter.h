@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -131,8 +131,15 @@ typedef struct {
 } PaceConfigInfo;
 
 typedef struct {
+    bool isValid;
+    bool enable;
+    bool enableFor911;
+} RobustLocationConfigInfo;
+
+typedef struct {
     TuncConfigInfo tuncConfigInfo;
     PaceConfigInfo paceConfigInfo;
+    RobustLocationConfigInfo robustLocationConfigInfo;
 } LocIntegrationConfigInfo;
 
 using namespace loc_core;
@@ -231,8 +238,9 @@ public:
     /* ======== EVENTS ====(Called from QMI Thread)========================================= */
     virtual void handleEngineUpEvent();
     /* ======== UTILITIES ================================================================== */
-    void restartSessions();
+    void restartSessions(bool modemSSR = false);
     void checkAndRestartSPESession();
+    void suspendSessions();
 
     /* ==== CLIENT ========================================================================= */
     /* ======== COMMANDS ====(Called from Client Thread)==================================== */
@@ -245,6 +253,8 @@ public:
     void eraseClient(LocationAPI* client);
     void notifyClientOfCachedLocationSystemInfo(LocationAPI* client,
                                                 const LocationCallbacks& callbacks);
+    void requestSvPolyForClient(LocationAPI* client,
+                                const LocationCallbacks& callbacks);
     void updateClientsEventMask();
     void stopClientSessions(LocationAPI* client);
     LocationCallbacks getClientCallbacks(LocationAPI* client);
@@ -293,7 +303,7 @@ public:
                         const GnssSvIdConfig& svIdConfig);
     void resetSvConfig(uint32_t sessionId);
     void configLeverArm(uint32_t sessionId, const LeverArmConfigInfo& configInfo);
-
+    void configRobustLocation(uint32_t sessionId, bool enable, bool enableForE911);
 
     /* ==== NI ============================================================================= */
     /* ======== COMMANDS ====(Called from Client Thread)==================================== */
@@ -359,6 +369,7 @@ public:
                                        const GnssSvIdConfig& svIdConfig);
     uint32_t gnssResetSvConfigCommand();
     uint32_t configLeverArmCommand(const LeverArmConfigInfo& configInfo);
+    uint32_t configRobustLocationCommand(bool enable, bool enableForE911);
 
     /* ========= ODCPI ===================================================================== */
     /* ======== COMMANDS ====(Called from Client Thread)==================================== */
@@ -428,6 +439,7 @@ public:
     void reportData(GnssDataNotification& dataNotify);
     bool requestNiNotify(const GnssNiNotification& notify, const void* data);
     void reportGnssMeasurementData(const GnssMeasurementsNotification& measurements);
+    void reportSvPolynomial(const GnssSvPolynomial &svPolynomial);
     void reportGnssSvIdConfig(const GnssSvIdConfig& config);
     void reportGnssSvTypeConfig(const GnssSvTypeConfig& config);
     void requestOdcpi(const OdcpiRequestInfo& request);
@@ -463,7 +475,7 @@ public:
     static bool convertToGnssSvIdConfig(
             const std::vector<GnssSvIdSource>& blacklistedSvIds, GnssSvIdConfig& config);
     static void convertFromGnssSvIdConfig(
-            const GnssSvIdConfig& svConfig, GnssConfig& config);
+            const GnssSvIdConfig& svConfig, std::vector<GnssSvIdSource>& blacklistedSvIds);
     static void convertGnssSvIdMaskToList(
             uint64_t svIdMask, std::vector<GnssSvIdSource>& svIds,
             GnssSvId initialSvId, GnssSvType svType);
