@@ -2511,14 +2511,14 @@ static int loc_eng_set_server(loc_eng_data_s_type &loc_eng_data,
         char url[MAX_URL_LEN];
         unsigned int len = 0;
         const char nohost[] = "NONE";
-        if (hostname == NULL ||
-            strncasecmp(nohost, hostname, sizeof(nohost)) == 0) {
+        if ((NULL == hostname) || (0 == strlen(hostname)) ||
+            (0 == strncasecmp(nohost, hostname, sizeof(nohost)))) {
             url[0] = NULL;
         } else {
             len = snprintf(url, sizeof(url), "%s:%u", hostname, (unsigned) port);
         }
 
-        if (sizeof(url) > len) {
+        if ((0 != strlen(url)) && (len < MAX_APN_LEN)) {
             adapter->sendMsg(new LocEngSetServerUrl(adapter, url, len));
         }
     } else if (LOC_AGPS_CDMA_PDE_SERVER == type ||
