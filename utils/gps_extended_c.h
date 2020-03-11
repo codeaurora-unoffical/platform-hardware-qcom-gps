@@ -396,9 +396,9 @@ typedef uint64_t GpsLocationExtendedFlags;
 #define GPS_LOCATION_EXTENDED_HAS_DGNSS_REF_STATION_ID         0x40000000000
 /** GpsLocationExtended has dgnss data age */
 #define GPS_LOCATION_EXTENDED_HAS_DGNSS_DATA_AGE               0x80000000000
- /** GpsLocationExtended has the probabilityOfGoodFix computed
-  *  from robust location feature. */
-#define GPS_LOCATION_EXTENDED_HAS_PROBABILITY_OF_GOOD_FIX      0x100000000000
+ /** GpsLocationExtended has the conformityIndex computed from
+  *  robust location feature. */
+#define GPS_LOCATION_EXTENDED_HAS_CONFORMITY_INDEX      0x100000000000
 
 typedef uint32_t LocNavSolutionMask;
 /* Bitmask to specify whether SBAS ionospheric correction is used  */
@@ -460,6 +460,8 @@ typedef uint32_t GnssAdditionalSystemInfoMask;
 #define BDS_SV_PRN_MAX      237
 #define GAL_SV_PRN_MIN      301
 #define GAL_SV_PRN_MAX      336
+#define NAVIC_SV_PRN_MIN    401
+#define NAVIC_SV_PRN_MAX    414
 
 typedef uint32_t LocPosTechMask;
 #define LOC_POS_TECH_MASK_DEFAULT ((LocPosTechMask)0x00000000)
@@ -493,6 +495,7 @@ typedef struct {
     uint64_t gal_sv_used_ids_mask;
     uint64_t bds_sv_used_ids_mask;
     uint64_t qzss_sv_used_ids_mask;
+    uint64_t navic_sv_used_ids_mask;
 } GnssSvUsedInPosition;
 
 typedef struct {
@@ -799,9 +802,10 @@ typedef struct {
     uint32_t dgnssDataAgeMsec;
 
     /* When robust location is enabled, this field
-     * will indicate proability of good fix if valid.
-     * The range is of [0.0, 1.0] */
-    float probabilityOfGoodFix;
+     * will how well the various input data considered for
+     * navigation solution conform to expectations.
+     * Range: 0 (least conforming) to 1 (most conforming) */
+    float conformityIndex;
 } GpsLocationExtended;
 
 enum loc_sess_status {
@@ -1445,7 +1449,13 @@ typedef uint64_t GpsSvMeasHeaderFlags;
 #define GNSS_SV_MEAS_HEADER_HAS_REF_COUNT_TICKS            0x00200000
 #define GNSS_SV_MEAS_HEADER_HAS_DGNSS_CORRECTION_SOURCE_TYPE  0x00400000
 #define GNSS_SV_MEAS_HEADER_HAS_DGNSS_CORRECTION_SOURCE_ID    0x00800000
-#define GNSS_SV_MEAS_HEADER_HAS_DGNSS_REF_STATION_ID          0x001000000
+#define GNSS_SV_MEAS_HEADER_HAS_DGNSS_REF_STATION_ID          0x01000000
+#define GNSS_SV_MEAS_HEADER_HAS_GPS_NAVIC_INTER_SYSTEM_BIAS   0x02000000
+#define GNSS_SV_MEAS_HEADER_HAS_GAL_NAVIC_INTER_SYSTEM_BIAS   0x04000000
+#define GNSS_SV_MEAS_HEADER_HAS_GLO_NAVIC_INTER_SYSTEM_BIAS   0x08000000
+#define GNSS_SV_MEAS_HEADER_HAS_BDS_NAVIC_INTER_SYSTEM_BIAS   0x10000000
+#define GNSS_SV_MEAS_HEADER_HAS_NAVIC_SYSTEM_TIME             0x20000000
+#define GNSS_SV_MEAS_HEADER_HAS_NAVIC_SYSTEM_TIME_EXT         0x40000000
 
 typedef struct
 {
@@ -1465,6 +1475,10 @@ typedef struct
     Gnss_InterSystemBiasStructType              bdsGloInterSystemBias;
     Gnss_InterSystemBiasStructType              galGloInterSystemBias;
     Gnss_InterSystemBiasStructType              galBdsInterSystemBias;
+    Gnss_InterSystemBiasStructType              gpsNavicInterSystemBias;
+    Gnss_InterSystemBiasStructType              galNavicInterSystemBias;
+    Gnss_InterSystemBiasStructType              gloNavicInterSystemBias;
+    Gnss_InterSystemBiasStructType              bdsNavicInterSystemBias;
     Gnss_InterSystemBiasStructType              gpsL1L5TimeBias;
     Gnss_InterSystemBiasStructType              galE1E5aTimeBias;
 
@@ -1472,6 +1486,7 @@ typedef struct
     GnssSystemTimeStructType                    galSystemTime;
     GnssSystemTimeStructType                    bdsSystemTime;
     GnssSystemTimeStructType                    qzssSystemTime;
+    GnssSystemTimeStructType                    navicSystemTime;
     GnssGloTimeStructType                       gloSystemTime;
 
     /** GPS system RTC time information. */
@@ -1484,6 +1499,8 @@ typedef struct
     Gnss_LocGnssTimeExtStructType               qzssSystemTimeExt;
     /** GLONASS system RTC time information. */
     Gnss_LocGnssTimeExtStructType               gloSystemTimeExt;
+    /** NAVIC system RTC time information. */
+    Gnss_LocGnssTimeExtStructType               navicSystemTimeExt;
 
     /** Receiver tick at frame count */
     uint64_t                                    refCountTicks;

@@ -524,9 +524,9 @@ GnssAdapter::convertLocationInfo(GnssLocationInfoNotification& out,
         out.locOutputEngMask = locationExtended.locOutputEngMask;
     }
 
-    if (GPS_LOCATION_EXTENDED_HAS_PROBABILITY_OF_GOOD_FIX & locationExtended.flags) {
-        out.flags |= GNSS_LOCATION_INFO_PROBABILITY_OF_GOOD_FIX_BIT;
-        out.probabilityOfGoodFix = locationExtended.probabilityOfGoodFix;
+    if (GPS_LOCATION_EXTENDED_HAS_CONFORMITY_INDEX & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_CONFORMITY_INDEX_BIT;
+        out.conformityIndex = locationExtended.conformityIndex;
     }
 }
 
@@ -3430,12 +3430,18 @@ GnssAdapter::reportPosition(const UlpLocation& ulpLocation,
             }
         }
 
-        // if PACE is enabled and engine hub is running and the fix is from sensor,
-        // e.g.: DRE, inject DRE fix to modem
-        if ((true == mLocConfigInfo.paceConfigInfo.isValid &&
-             true == mLocConfigInfo.paceConfigInfo.enable) &&
-                (true == initEngHubProxy()) && (LOC_POS_TECH_MASK_SENSORS & techMask)) {
-            mLocApi->injectPosition(locationInfo, false);
+        // if PACE is enabled
+        if ((true == mLocConfigInfo.paceConfigInfo.isValid) &&
+                (true == mLocConfigInfo.paceConfigInfo.enable)) {
+            // If fix has sensor contribution, and it is fused fix with DRE engine
+            // contributing to the fix, inject to modem
+            if ((LOC_POS_TECH_MASK_SENSORS & techMask) &&
+                    (locationInfo.flags & GNSS_LOCATION_INFO_OUTPUT_ENG_TYPE_BIT) &&
+                    (locationInfo.locOutputEngType == LOC_OUTPUT_ENGINE_FUSED) &&
+                    (locationInfo.flags & GNSS_LOCATION_INFO_OUTPUT_ENG_MASK_BIT) &&
+                    (locationInfo.locOutputEngMask & DEAD_RECKONING_ENGINE)) {
+                mLocApi->injectPosition(locationInfo, false);
+            }
         }
     }
 
@@ -3642,6 +3648,11 @@ GnssAdapter::reportSv(GnssSvNotification& svNotify)
                     } else {
                         svUsedIdMask = mGnssSvIdUsedInPosition.qzss_sv_used_ids_mask;
                     }
+                }
+                break;
+            case GNSS_SV_TYPE_NAVIC:
+                if (mGnssSvIdUsedInPosAvail) {
+                    svUsedIdMask = mGnssSvIdUsedInPosition.navic_sv_used_ids_mask;
                 }
                 break;
             default:
@@ -4634,6 +4645,19 @@ void GnssAdapter::convertSatelliteInfo(std::vector<GnssDebugSatelliteInfo>& out,
                 server_perdiction_age = (float)(in.mXtra.back().mGalXtraAge);
             }
             break;
+        case GNSS_SV_TYPE_NAVIC:
+            svid_min = GNSS_BUGREPORT_NAVIC_MIN;
+            svid_num = NAVIC_NUM;
+            svid_idx = GPS_NUM+GLO_NUM+QZSS_NUM+BDS_NUM+GAL_NUM;
+            if (!in.mSvHealth.empty()) {
+                eph_health_good_mask = in.mSvHealth.back().mNavicGoodMask;
+                eph_health_bad_mask  = in.mSvHealth.back().mNavicBadMask;
+            }
+            if (!in.mXtra.empty()) {
+                server_perdiction_available_mask = in.mXtra.back().mNavicXtraValid;
+                server_perdiction_age = (float)(in.mXtra.back().mNavicXtraAge);
+            }
+            break;
         default:
             return;
     }
@@ -4791,6 +4815,7 @@ bool GnssAdapter::getDebugReport(GnssDebugReport& r)
     convertSatelliteInfo(r.mSatelliteInfo, GNSS_SV_TYPE_QZSS, reports);
     convertSatelliteInfo(r.mSatelliteInfo, GNSS_SV_TYPE_BEIDOU, reports);
     convertSatelliteInfo(r.mSatelliteInfo, GNSS_SV_TYPE_GALILEO, reports);
+    convertSatelliteInfo(r.mSatelliteInfo, GNSS_SV_TYPE_NAVIC, reports);
     LOC_LOGV("getDebugReport - satellite=%zu", r.mSatelliteInfo.size());
 
     return true;
@@ -5276,7 +5301,9 @@ GnssAdapter::configRobustLocation(uint32_t sessionId,
 
     if ((mLocConfigInfo.robustLocationConfigInfo.isValid == true) &&
             (mLocConfigInfo.robustLocationConfigInfo.enable == enable) &&
-            (mLocConfigInfo.robustLocationConfigInfo.enableFor911 == enableForE911)) {
+            ((mLocConfigInfo.robustLocationConfigInfo.enable == false) ||
+             (mLocConfigInfo.robustLocationConfigInfo.enable == true &&
+              mLocConfigInfo.robustLocationConfigInfo.enableFor911 == enableForE911))) {
         // no change in configuration, inform client of response and simply return
         reportResponse(LOCATION_ERROR_SUCCESS, sessionId);
         return;
