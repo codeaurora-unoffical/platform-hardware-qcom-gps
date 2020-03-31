@@ -971,12 +971,12 @@ GnssAdapter::setUlpProxy(UlpProxyBase* ulp)
         ulp = new UlpProxyBase();
     }
 
-    if (LOC_POSITION_MODE_INVALID != mUlpProxy->mPosMode.mode) {
-        // need to send this mode and start msg to ULP
-        ulp->sendFixMode(mUlpProxy->mPosMode);
-    }
-
     if (mUlpProxy->mFixSet) {
+        if (LOC_POSITION_MODE_INVALID != mUlpProxy->mPosMode.mode) {
+            // need to send this mode and start msg to ULP
+            ulp->sendFixMode(mUlpProxy->mPosMode);
+        }
+
         ulp->sendStartFix();
     }
 
