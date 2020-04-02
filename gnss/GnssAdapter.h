@@ -253,8 +253,6 @@ public:
     void eraseClient(LocationAPI* client);
     void notifyClientOfCachedLocationSystemInfo(LocationAPI* client,
                                                 const LocationCallbacks& callbacks);
-    void requestSvPolyForClient(LocationAPI* client,
-                                const LocationCallbacks& callbacks);
     void updateClientsEventMask();
     void stopClientSessions(LocationAPI* client);
     LocationCallbacks getClientCallbacks(LocationAPI* client);
@@ -304,6 +302,7 @@ public:
     void resetSvConfig(uint32_t sessionId);
     void configLeverArm(uint32_t sessionId, const LeverArmConfigInfo& configInfo);
     void configRobustLocation(uint32_t sessionId, bool enable, bool enableForE911);
+    void configMinGpsWeek(uint32_t sessionId, uint16_t minGpsWeek);
 
     /* ==== NI ============================================================================= */
     /* ======== COMMANDS ====(Called from Client Thread)==================================== */
@@ -370,6 +369,7 @@ public:
     uint32_t gnssResetSvConfigCommand();
     uint32_t configLeverArmCommand(const LeverArmConfigInfo& configInfo);
     uint32_t configRobustLocationCommand(bool enable, bool enableForE911);
+    uint32_t configMinGpsWeekCommand(uint16_t minGpsWeek);
 
     /* ========= ODCPI ===================================================================== */
     /* ======== COMMANDS ====(Called from Client Thread)==================================== */
@@ -412,6 +412,7 @@ public:
     virtual void reportSvEphemerisEvent(GnssSvEphemerisReport & svEphemeris);
     virtual void reportGnssSvIdConfigEvent(const GnssSvIdConfig& config);
     virtual void reportGnssSvTypeConfigEvent(const GnssSvTypeConfig& config);
+    virtual void reportGnssConfigEvent(uint32_t sessionId, const GnssConfig& gnssConfig);
     virtual bool reportGnssEngEnergyConsumedEvent(uint64_t energyConsumedSinceFirstBoot);
     virtual void reportLocationSystemInfoEvent(const LocationSystemInfo& locationSystemInfo);
 
@@ -439,9 +440,9 @@ public:
     void reportData(GnssDataNotification& dataNotify);
     bool requestNiNotify(const GnssNiNotification& notify, const void* data);
     void reportGnssMeasurementData(const GnssMeasurementsNotification& measurements);
-    void reportSvPolynomial(const GnssSvPolynomial &svPolynomial);
     void reportGnssSvIdConfig(const GnssSvIdConfig& config);
     void reportGnssSvTypeConfig(const GnssSvTypeConfig& config);
+    void reportGnssConfig(uint32_t sessionId, const GnssConfig& gnssConfig);
     void requestOdcpi(const OdcpiRequestInfo& request);
     void invokeGnssEnergyConsumedCallback(uint64_t energyConsumedSinceFirstBoot);
     void saveGnssEnergyConsumedCallback(GnssEnergyConsumedCallback energyConsumedCb);
