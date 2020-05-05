@@ -2206,12 +2206,13 @@ GnssAdapter::updateClientsEventMask()
         mask |= LOC_API_ADAPTER_BIT_GNSS_SV_EPHEMERIS_REPORT;
         mask |= LOC_API_ADAPTER_BIT_LOC_SYSTEM_INFO;
         mask |= LOC_API_ADAPTER_BIT_EVENT_REPORT_INFO;
+        mask |= LOC_API_ADAPTER_BIT_SAP_INS_REPORT_INFO;
 
         // Nhz measurement bit is set based on callback from loc eng hub
         // for Nhz engines.
         mask |= checkMask(LOC_API_ADAPTER_BIT_GNSS_NHZ_MEASUREMENT);
 
-        LOC_LOGd("Auto usecase, Enable MEAS/POLY/EPHEMERIS - mask 0x%" PRIx64 "",
+        LOC_LOGd("Auto usecase, Enable MEAS/POLY/EPHEMERIS/SAP_INS - mask 0x%" PRIx64 "",
                 mask);
     }
 
@@ -4039,6 +4040,13 @@ GnssAdapter::reportSvMeasurementEvent(GnssSvMeasurementSet &svMeasurementSet)
 {
     LOC_LOGD("%s]: ", __func__);
     mEngHubProxy->gnssReportSvMeasurement(svMeasurementSet);
+}
+
+void
+GnssAdapter::reportSapInsParamsEvent(GnssSapInsParams &sapInsParams)
+{
+    LOC_LOGD("%s]: ", __func__);
+    mEngHubProxy->gnssReportSapInsParams(sapInsParams);
 }
 
 void

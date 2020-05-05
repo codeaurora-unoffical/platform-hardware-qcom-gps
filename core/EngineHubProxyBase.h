@@ -76,6 +76,10 @@ public:
         return false;
     }
 
+    inline virtual bool gnssReportSapInsParams(const GnssSapInsParams& sapInsParams) {
+        (void) sapInsParams;
+        return false;
+    }
     inline virtual bool gnssReportSvPolynomial(const GnssSvPolynomial& svPolynomial) {
         (void) svPolynomial;
         return false;

@@ -110,6 +110,10 @@ void LocAdapterBase::
 DEFAULT_IMPL()
 
 void LocAdapterBase::
+    reportSapInsParamsEvent(GnssSapInsParams &/*sapInsParams*/)
+DEFAULT_IMPL()
+
+void LocAdapterBase::
     reportSvPolynomialEvent(GnssSvPolynomial &/*svPolynomial*/)
 DEFAULT_IMPL()
 

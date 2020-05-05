@@ -940,6 +940,7 @@ enum loc_api_adapter_event_index {
     LOC_API_ADAPTER_LOC_SYSTEM_INFO,                   // Location system info event
     LOC_API_ADAPTER_GNSS_NHZ_MEASUREMENT_REPORT,       // GNSS SV nHz measurement report
     LOC_API_ADAPTER_EVENT_REPORT_INFO,                 // Event report info
+    LOC_API_ADAPTER_SAP_INS_REPORT_INFO,               // SAP INS Report
     LOC_API_ADAPTER_EVENT_MAX
 };
 
@@ -982,6 +983,7 @@ enum loc_api_adapter_event_index {
 #define LOC_API_ADAPTER_BIT_LOC_SYSTEM_INFO                  (1ULL<<LOC_API_ADAPTER_LOC_SYSTEM_INFO)
 #define LOC_API_ADAPTER_BIT_GNSS_NHZ_MEASUREMENT             (1ULL<<LOC_API_ADAPTER_GNSS_NHZ_MEASUREMENT_REPORT)
 #define LOC_API_ADAPTER_BIT_EVENT_REPORT_INFO                (1ULL<<LOC_API_ADAPTER_EVENT_REPORT_INFO)
+#define LOC_API_ADAPTER_BIT_SAP_INS_REPORT_INFO              (1ULL<<LOC_API_ADAPTER_SAP_INS_REPORT_INFO)
 
 typedef uint64_t LOC_API_ADAPTER_EVENT_MASK_T;
 
@@ -1543,6 +1545,255 @@ typedef struct {
     Gnss_SVMeasurementStructType  svMeas[GNSS_LOC_SV_MEAS_LIST_MAX_SIZE];
 
 } GnssSvMeasurementSet;
+
+/* Number of FILTER_MAX_STATES */
+#define FILTER_MAX_STATES                  (17)
+#define FILTER_MAX_HOR_NHC_MEAS            (6)
+#define FILTER_MAX_VER_NHC_MEAS            (6)
+#define FILTER_MAX_ZUPT_VAL                (3)
+#define FILTER_MAX_ZTUPT_VAL               (3)
+#define INS_ELEMENT_SIZE_THREE             (3)
+#define INS_ELEMENT_SIZE_FOUR              (4)
+#define INS_ELEMENT_SIZE_NINE              (9)
+#define SAP_SV_MAX_SIZE                    (176)
+
+/** Flags to indicate which values are valid in a GnssSapInsParams. */
+typedef uint64_t GnssSapInsParamsFlags;
+/** GnssSapInsParams has valid FilterStates. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_STATES 0x0001
+/** GnssSapInsParams has valid Filter variance. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_VARIANCE 0x0002
+/** GnssSapInsParams has valid Filter reliability 1. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_HOR_REL 0x0004
+/** GnssSapInsParams has valid Filter reliability 2. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_VER_REL 0x0008
+
+/** GnssSapInsParams has valid Filter residual 1. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_HOR_NHC_RES 0x0010
+/** GnssSapInsParams has valid Filter observation 1. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_HOR_NHC_MEAS_OBJ 0x0020
+/** GnssSapInsParams has valid Filter variance 1. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_HOR_NHC_MEAS_VAR 0x0040
+/** GnssSapInsParams has valid Filter result 1. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_HOR_NHC_RAIM_RSLT 0x0080
+
+/** GnssSapInsParams has valid Filter residual 2. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_VER_NHC_RESI 0x0100
+/** GnssSapInsParams has valid Filter observation 2. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_VER_NHC_MEAS_OBJ 0x0200
+/** GnssSapInsParams has valid Filter variance 2. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_VER_NHC_MEAS_VAR 0x0400
+/** GnssSapInsParams has valid Filter result 2. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_VER_NHC_RAIM_REST 0x0800
+
+/** GnssSapInsParams has valid Filter residual 3. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_ZUPT_RES 0x1000
+/** GnssSapInsParams has valid Filter variance 3. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_ZUPT_MEAS_VAR 0x2000
+/** GnssSapInsParams has valid Filter result 3. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_ZUPT_RAIM_RSLT 0x4000
+
+/** GnssSapInsParams has valid Filter residual 4. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_ZTUPT_RES 0x8000
+/** GnssSapInsParams has valid Filter variance 4. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_ZTUPT_MEAS_VAR 0x00010000
+/** GnssSapInsParams has valid Filter result 4. */
+#define GNSS_LOCATION_EXTENDED_HAS_FLT_ZTUPT_RAIM_RSLT 0x00020000
+
+
+/** GnssSapInsParams has valid Filter Acceleration. */
+#define GNSS_LOCATION_EXTENDED_HAS_IMU_ACCEL 0x00040000
+/** GnssSapInsParams has valid Filter Quaternion. */
+#define GNSS_LOCATION_EXTENDED_HAS_INT_QTRN 0x00080000
+/** GnssSapInsParams has valid Bias M1. */
+#define GNSS_LOCATION_EXTENDED_HAS_BIAS_M1 0x00100000
+/** GnssSapInsParams has valid Bias V1. */
+#define GNSS_LOCATION_EXTENDED_HAS_BIAS_V1 0x00200000
+/** GnssSapInsParams has valid Bias M2. */
+#define GNSS_LOCATION_EXTENDED_HAS_BIAS_M2 0x00400000
+/** GnssSapInsParams has valid Bias V2. */
+#define GNSS_LOCATION_EXTENDED_HAS_BIAS_V2 0x00800000
+
+
+/** GnssSapInsParams has valid Rotation Matrix 1. */
+#define GNSS_LOCATION_EXTENDED_HAS_MAT1 0x01000000
+/** GnssSapInsParams has valid Rotation Matrix 1 count. */
+#define GNSS_LOCATION_EXTENDED_HAS_MAT1_CNT 0x02000000
+/** GnssSapInsParams has valid Rotation Matrix 2. */
+#define GNSS_LOCATION_EXTENDED_HAS_MAT2 0x04000000
+/** GnssSapInsParams has valid Detector 1 reset. */
+#define GNSS_LOCATION_EXTENDED_HAS_DTCR1_RESET 0x08000000
+/** GnssSapInsParams has valid Detector 2 status. */
+#define GNSS_LOCATION_EXTENDED_HAS_DTCR2_STATUS 0x10000000
+/** GnssSapInsParams has valid Detector 2 position. */
+#define GNSS_LOCATION_EXTENDED_HAS_DTCR2_POS 0x20000000
+/** GnssSapInsParams has valid Detector 2 position uncertainty. */
+#define GNSS_LOCATION_EXTENDED_HAS_DTCR2_POS_UNC 0x40000000
+/** GnssSapInsParams has valid Detector 3 status. */
+#define GNSS_LOCATION_EXTENDED_HAS_DTCR3_STATUS 0x80000000
+/** GnssSapInsParams has valid Detector 3 status. */
+#define GNSS_LOCATION_EXTENDED_HAS_DTCR3_VAR1 0x000100000000
+/** GnssSapInsParams has valid Detector 3 status. */
+#define GNSS_LOCATION_EXTENDED_HAS_DTCR3_VAR2 0x000200000000
+/** GnssSapInsParams has valid Detector 4 status. */
+#define GNSS_LOCATION_EXTENDED_HAS_DTCR4_STATUS 0x000400000000
+/** GnssSapInsParams has valid Detector 4 status. */
+#define GNSS_LOCATION_EXTENDED_HAS_DTCR4_POS 0x000800000000
+/** GnssSapInsParams has valid Detector 5 status. */
+#define GNSS_LOCATION_EXTENDED_HAS_DTCR5_STATUS 0x001000000000
+/** GnssSapInsParams has valid Detector 6 status. */
+#define GNSS_LOCATION_EXTENDED_HAS_DTCR6_STATUS 0x000200000000
+
+/** GnssSapInsParams has valid Satellite identifier. */
+#define GNSS_LOCATION_EXTENDED_HAS_SAT_ID 0x000400000000
+/** GnssSapInsParams has valid GNSS Signal Type. */
+#define GNSS_LOCATION_EXTENDED_HAS_SIG_TYPE 0x000800000000
+/** GnssSapInsParams has valid Measurement variance 1 . */
+#define GNSS_LOCATION_EXTENDED_HAS_PR_MEAS_VAR_USED 0x001000000000
+/** GnssSapInsParams has valid Measurement usage info 1. */
+#define GNSS_LOCATION_EXTENDED_HAS_PR_MEAS_USED_INFO 0x002000000000
+/** GnssSapInsParams has valid Measurement variance 2 . */
+#define GNSS_LOCATION_EXTENDED_HAS_PRR_MEAS_VAR_USED 0x004000000000
+/** GnssSapInsParams has valid Measurement usage info 2. */
+#define GNSS_LOCATION_EXTENDED_HAS_PRR_MEAS_USED_INFO 0x008000000000
+/** GnssSapInsParams has valid GNSS Signal Type. */
+
+/* SAP INS Params for external DR solution */
+typedef struct {
+    /** set to sizeof(GnssSapInsParams) */
+    uint32_t size;
+    /** Contains GnssSapInsParamsFlags bits */
+    uint64_t flags;
+
+    /** Overall Filter state */
+    uint8_t status;
+    /** Filter fix status information */
+    uint16_t fixStatus;
+    /** System Time Src */
+    uint8_t systemSrc;
+    /** System Time Week */
+    uint16_t systemWeek;
+    /** System Time Msec */
+    uint32_t systemMsec;
+    /** System Time Clock Bias */
+    float systemClkTimeBias;
+    /** System Time Time Uncertainity */
+    float systemClkTimeUncMs;
+
+    /** Filter state information */
+    double state[FILTER_MAX_STATES];
+    /** Filter variance information */
+    double var[FILTER_MAX_STATES];
+    /** Filter reliability 1 */
+    uint8_t rel1;
+    /** Filter reliability 2 */
+    uint8_t rel2;
+
+    /* Filter residual 1 */
+    double residual1;
+    /* Filter observation 1 */
+    double obs1[FILTER_MAX_HOR_NHC_MEAS];
+    /* Filter variance 1 */
+    double var1;
+    /* Filter result 1 */
+    uint8_t result1;
+
+    /* Filter residual 2 */
+    double residual2;
+    /* Filter observation 2 */
+    double obs2[FILTER_MAX_VER_NHC_MEAS];
+    /* Filter variance 2 */
+    double var2;
+    /* Filter result 2 */
+    uint8_t result2;
+
+    /* Filter residual 3 */
+    double residual3[FILTER_MAX_ZUPT_VAL];
+    /* Filter variance 3 */
+    double var3[FILTER_MAX_ZUPT_VAL];
+    /* Filter result 3 */
+    uint8_t result3[FILTER_MAX_ZUPT_VAL];
+
+    /* Filter residual 4 */
+    double residual4[FILTER_MAX_ZTUPT_VAL];
+    /* Filter variance 4 */
+    double var4[FILTER_MAX_ZTUPT_VAL];
+    /* Filter result 4 */
+    uint8_t result4[FILTER_MAX_ZTUPT_VAL];
+
+    /* Filter Acceleration */
+    double acc[INS_ELEMENT_SIZE_THREE];
+    /* Filter Quaternion*/
+    double quat[INS_ELEMENT_SIZE_FOUR];
+    /* Bias M1*/
+    float biasM1[INS_ELEMENT_SIZE_THREE];
+    /* Bias V1*/
+    float biasV1[INS_ELEMENT_SIZE_THREE];
+    /* Bias M2*/
+    float biasM2[INS_ELEMENT_SIZE_THREE];
+    /* Bias V2*/
+    float biasV2[INS_ELEMENT_SIZE_THREE];
+
+    /* Rotation Matrix 1*/
+    double rMat1[INS_ELEMENT_SIZE_NINE];
+    /* Rotation Matrix 1 count */
+    uint32_t rMat1Count;
+    /* Rotation Matrix 2*/
+    double rMat2[INS_ELEMENT_SIZE_NINE];
+
+    /* Detector 1 reset  */
+    uint8_t det1Reset;
+    /* Detector 2 status */
+    uint8_t det2Status;
+    /* Detector 2 position */
+    double det2Position[INS_ELEMENT_SIZE_THREE];
+    /* Detector 2 position uncertainty */
+    float det2PositionUnc[INS_ELEMENT_SIZE_THREE];
+    /* Detector 3 status */
+    uint8_t det3Status;
+    /* Detector 3 variance 1 */
+    float det3Variance1[INS_ELEMENT_SIZE_THREE];
+    /* Detector 3 variance 2 */
+    float det3Variance2[INS_ELEMENT_SIZE_THREE];
+    /* Detector 4 status */
+    uint8_t det4Status;
+    /* Detector 4 position */
+    double det4Position[INS_ELEMENT_SIZE_THREE];
+    /* Detector 5 status */
+    uint8_t det5Status;
+    /* Detector 6 status */
+    uint8_t det6Status;
+
+    /* Satellite identifier length */
+    uint32_t gnssSvId_len;
+    /* Satellite identifier array */
+    uint16_t gnssSvId[SAP_SV_MAX_SIZE];
+
+    /* GNSS Signal Type length */
+    uint32_t measType_len;
+    /* GNSS Signal Type elements */
+    uint64_t measType[SAP_SV_MAX_SIZE];
+
+    /* Measurement variance 1 length */
+    uint32_t measVar1_len;
+    /* Measurement info 2 elements */
+    float measVar1[SAP_SV_MAX_SIZE];
+
+    /* Measurement info 2 length */
+    uint32_t measUse1_len;
+    /* Measurement info 2 elements */
+    uint32_t measUse1[SAP_SV_MAX_SIZE];
+
+    /* Measurement variance 1 length */
+    uint32_t measVar2_len;
+    /* Measurement info 2 elements */
+    float measVar2[SAP_SV_MAX_SIZE];
+
+    /* Measurement info 2 length */
+    uint32_t measUse2_len;
+    /* Measurement info 2 elements */
+    uint32_t measUse2[SAP_SV_MAX_SIZE];
+} GnssSapInsParams;
 
 typedef enum
 {
