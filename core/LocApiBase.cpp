@@ -148,7 +148,8 @@ struct LocCloseMsg : public LocMsg {
     }
 };
 
-MsgTask* LocApiBase::mMsgTask;
+MsgTask* LocApiBase::mMsgTask = nullptr;
+volatile int32_t LocApiBase::mMsgTaskRefCount = 0;
 
 LocApiBase::LocApiBase(LOC_API_ADAPTER_EVENT_MASK_T excludedMask,
                        ContextBase* context) :
@@ -157,6 +158,7 @@ LocApiBase::LocApiBase(LOC_API_ADAPTER_EVENT_MASK_T excludedMask,
 {
     memset(mLocAdapters, 0, sizeof(mLocAdapters));
 
+    android_atomic_inc(&mMsgTaskRefCount);
     if (nullptr == mMsgTask) {
         mMsgTask = new MsgTask("LocApiMsgTask", false);
     }
@@ -201,7 +203,7 @@ void LocApiBase::addAdapter(LocAdapterBase* adapter)
     for (int i = 0; i < MAX_ADAPTERS && mLocAdapters[i] != adapter; i++) {
         if (mLocAdapters[i] == NULL) {
             mLocAdapters[i] = adapter;
-            mMsgTask->sendMsg(new LocOpenMsg(this,  adapter));
+            sendMsg(new LocOpenMsg(this,  adapter));
             break;
         }
     }
@@ -234,10 +236,10 @@ void LocApiBase::removeAdapter(LocAdapterBase* adapter)
 
             // if we have an empty list of adapters
             if (0 == i) {
-                mMsgTask->sendMsg(new LocCloseMsg(this));
+                sendMsg(new LocCloseMsg(this));
             } else {
                 // else we need to remove the bit
-                mMsgTask->sendMsg(new LocOpenMsg(this));
+                sendMsg(new LocOpenMsg(this));
             }
         }
     }
@@ -245,7 +247,7 @@ void LocApiBase::removeAdapter(LocAdapterBase* adapter)
 
 void LocApiBase::updateEvtMask()
 {
-    mMsgTask->sendMsg(new LocOpenMsg(this));
+    sendMsg(new LocOpenMsg(this));
 }
 
 void LocApiBase::updateNmeaMask(uint32_t mask)
@@ -269,7 +271,7 @@ void LocApiBase::updateNmeaMask(uint32_t mask)
         }
     };
 
-    mMsgTask->sendMsg(new LocSetNmeaMsg(this, mask));
+    sendMsg(new LocSetNmeaMsg(this, mask));
 }
 
 void LocApiBase::handleEngineUpEvent()
