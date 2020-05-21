@@ -62,7 +62,7 @@ struct GnssInterface {
     void (*setControlCallbacks)(LocationControlCallbacks& controlCallbacks);
     uint32_t (*enable)(LocationTechnologyType techType);
     void (*disable)(uint32_t id);
-    uint32_t* (*gnssUpdateConfig)(GnssConfig config);
+    uint32_t* (*gnssUpdateConfig)(const GnssConfig& config);
     uint32_t* (*gnssGetConfig)(GnssConfigFlagsMask config);
     void (*gnssUpdateSvTypeConfig)(GnssSvTypeConfig& config);
     void (*gnssGetSvTypeConfig)(GnssSvTypeConfigCallback& callback);
@@ -93,6 +93,7 @@ struct GnssInterface {
     uint32_t (*configLeverArm)(const LeverArmConfigInfo& configInfo);
     uint32_t (*configRobustLocation)(bool enable, bool enableForE911);
     uint32_t (*configMinGpsWeek)(uint16_t minGpsWeek);
+    uint32_t (*configBodyToSensorMountParams)(const BodyToSensorMountParams& b2sParams);
 };
 
 struct FlpInterface {

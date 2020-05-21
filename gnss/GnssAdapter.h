@@ -154,6 +154,20 @@ typedef std::function<void(
 
 typedef void (*removeClientCompleteCallback)(LocationAPI* client);
 
+typedef void* QDgnssListenerHDL;
+typedef std::function<void(
+    bool    sessionActive
+)> QDgnssSessionActiveCb;
+
+struct CdfwInterface {
+    QDgnssListenerHDL (*createUsableReporter)(
+            QDgnssSessionActiveCb sessionActiveCb);
+
+    void (*destroyUsableReporter)(QDgnssListenerHDL handle);
+
+    void (*reportUsable)(QDgnssListenerHDL handle, bool usable);
+};
+
 class GnssAdapter : public LocAdapterBase {
 
     /* ==== Engine Hub ===================================================================== */
@@ -191,6 +205,13 @@ class GnssAdapter : public LocAdapterBase {
     AgpsManager mAgpsManager;
     AgpsCbInfo mAgpsCbInfo;
     void initAgps(const AgpsCbInfo& cbInfo);
+
+    /* ==== DGNSS Data Usable Report======================================================== */
+    QDgnssListenerHDL mQDgnssListenerHDL;
+    const CdfwInterface* mCdfwInterface;
+    bool mDGnssNeedReport;
+    bool mDGnssDataUsage;
+    void reportDGnssDataUsable(GnssSvMeasurementSet &svMeasurementSet);
 
     /* ==== ODCPI ========================================================================== */
     OdcpiRequestCallback mOdcpiRequestCb;
@@ -322,7 +343,7 @@ public:
     void setConfigCommand();
     void requestUlpCommand();
     void initEngHubProxyCommand();
-    uint32_t* gnssUpdateConfigCommand(GnssConfig config);
+    uint32_t* gnssUpdateConfigCommand(const GnssConfig& config);
     uint32_t* gnssGetConfigCommand(GnssConfigFlagsMask mask);
     uint32_t gnssDeleteAidingDataCommand(GnssAidingData& data);
     void deleteAidingData(const GnssAidingData &data, uint32_t sessionId);
@@ -370,6 +391,7 @@ public:
     uint32_t configLeverArmCommand(const LeverArmConfigInfo& configInfo);
     uint32_t configRobustLocationCommand(bool enable, bool enableForE911);
     uint32_t configMinGpsWeekCommand(uint16_t minGpsWeek);
+    uint32_t configBodyToSensorMountParamsCommand(const BodyToSensorMountParams& b2sParams);
 
     /* ========= ODCPI ===================================================================== */
     /* ======== COMMANDS ====(Called from Client Thread)==================================== */
@@ -387,6 +409,7 @@ public:
     virtual bool isInSession() { return !mTrackingSessions.empty(); }
     void initDefaultAgps();
     bool initEngHubProxy();
+    void initDGnssUsableReporter();
     void odcpiTimerExpireEvent();
 
     /* ==== REPORTS ======================================================================== */
@@ -489,6 +512,9 @@ public:
                          int blockDurationMsec, double latLonDiffThreshold);
 
     void updatePowerStateCommand(PowerStateType powerState);
+
+    /*==== DGnss Usable Report Flag ====================================================*/
+    inline void setDGnssUsableFLag(bool dGnssNeedReport) { mDGnssNeedReport = dGnssNeedReport;}
 };
 
 #endif //GNSS_ADAPTER_H

@@ -50,7 +50,7 @@ static void gnssUpdateXtraThrottle(const bool enabled);
 static void setControlCallbacks(LocationControlCallbacks& controlCallbacks);
 static uint32_t enable(LocationTechnologyType techType);
 static void disable(uint32_t id);
-static uint32_t* gnssUpdateConfig(GnssConfig config);
+static uint32_t* gnssUpdateConfig(const GnssConfig& config);
 static uint32_t* gnssGetConfig(GnssConfigFlagsMask mask);
 
 static void gnssUpdateSvTypeConfig(GnssSvTypeConfig& config);
@@ -85,6 +85,7 @@ static uint32_t gnssResetSvConfig();
 static uint32_t configLeverArm(const LeverArmConfigInfo& configInfo);
 static uint32_t configRobustLocation(bool enable, bool enableForE911);
 static uint32_t configMinGpsWeek(uint16_t minGpsWeek);
+static uint32_t configBodyToSensorMountParams(const BodyToSensorMountParams& b2sParams);
 
 static const GnssInterface gGnssInterface = {
     sizeof(GnssInterface),
@@ -128,7 +129,8 @@ static const GnssInterface gGnssInterface = {
     gnssResetSvConfig,
     configLeverArm,
     configRobustLocation,
-    configMinGpsWeek
+    configMinGpsWeek,
+    configBodyToSensorMountParams,
 };
 
 #ifndef DEBUG_X86
@@ -232,7 +234,7 @@ static void disable(uint32_t id)
     }
 }
 
-static uint32_t* gnssUpdateConfig(GnssConfig config)
+static uint32_t* gnssUpdateConfig(const GnssConfig& config)
 {
     if (NULL != gGnssAdapter) {
         return gGnssAdapter->gnssUpdateConfigCommand(config);
@@ -442,6 +444,14 @@ static uint32_t configRobustLocation(bool enable, bool enableForE911){
 static uint32_t configMinGpsWeek(uint16_t minGpsWeek){
     if (NULL != gGnssAdapter) {
         return gGnssAdapter->configMinGpsWeekCommand(minGpsWeek);
+    } else {
+        return 0;
+    }
+}
+
+static uint32_t configBodyToSensorMountParams(const BodyToSensorMountParams& b2sParams){
+    if (NULL != gGnssAdapter) {
+        return gGnssAdapter->configBodyToSensorMountParamsCommand(b2sParams);
     } else {
         return 0;
     }
