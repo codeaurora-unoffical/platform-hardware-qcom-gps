@@ -38,7 +38,7 @@
 #define GNSS_NI_REQUESTOR_MAX  (256)
 #define GNSS_NI_MESSAGE_ID_MAX (2048)
 #define GNSS_SV_MAX            (128)
-#define GNSS_MEASUREMENTS_MAX  (64)
+#define GNSS_MEASUREMENTS_MAX  (128)
 #define GNSS_UTC_TIME_OFFSET   (3657)
 
 #define GNSS_BUGREPORT_GPS_MIN    (1)
@@ -100,13 +100,24 @@ typedef enum {
 
 typedef uint32_t GnssLocationNavSolutionMask;
 typedef enum {
-    LOCATION_SBAS_CORRECTION_IONO_BIT  = (1<<0), // SBAS ionospheric correction is used
-    LOCATION_SBAS_CORRECTION_FAST_BIT  = (1<<1), // SBAS fast correction is used
-    LOCATION_SBAS_CORRECTION_LONG_BIT  = (1<<2), // SBAS long-tem correction is used
-    LOCATION_SBAS_INTEGRITY_BIT        = (1<<3), // SBAS integrity information is used
-    LOCATION_NAV_CORRECTION_DGNSS_BIT  = (1<<4), // Position Report is DGNSS corrected
-    LOCATION_NAV_CORRECTION_RTK_BIT    = (1<<5), // Position Report is RTK corrected
-    LOCATION_NAV_CORRECTION_PPP_BIT    = (1<<6) // Position Report is PPP corrected
+    // SBAS ionospheric correction is used
+    LOCATION_SBAS_CORRECTION_IONO_BIT  = (1<<0),
+    // SBAS fast correction is used
+    LOCATION_SBAS_CORRECTION_FAST_BIT  = (1<<1),
+    // SBAS long-tem correction is used
+    LOCATION_SBAS_CORRECTION_LONG_BIT  = (1<<2),
+    // SBAS integrity information is used
+    LOCATION_SBAS_INTEGRITY_BIT        = (1<<3),
+    // Position Report is DGNSS corrected
+    LOCATION_NAV_CORRECTION_DGNSS_BIT  = (1<<4),
+     // Position Report is RTK corrected
+    LOCATION_NAV_CORRECTION_RTK_BIT    = (1<<5),
+    // Position Report is PPP corrected
+    LOCATION_NAV_CORRECTION_PPP_BIT    = (1<<6),
+    // Posiiton Report is RTF fixed corrected
+    LOCATION_NAV_CORRECTION_RTK_FIXED_BIT  = (1<<7),
+    // Position report is computed with only SBAS corrected SVs.
+    LOCATION_NAV_CORRECTION_ONLY_SBAS_CORRECTED_SV_USED_BIT = (1<<8)
 } GnssLocationNavSolutionBits;
 
 typedef uint32_t GnssLocationPosTechMask;
@@ -338,6 +349,7 @@ typedef enum {
     GNSS_CONFIG_FLAGS_BLACKLISTED_SV_IDS_BIT               = (1<<10),
     GNSS_CONFIG_FLAGS_ROBUST_LOCATION_BIT                  = (1<<11),
     GNSS_CONFIG_FLAGS_MIN_GPS_WEEK_BIT                     = (1<<12),
+    GNSS_CONFIG_FLAGS_MIN_SV_ELEVATION_BIT                 = (1<<13),
 } GnssConfigFlagsBits;
 
 typedef enum {
@@ -1119,7 +1131,7 @@ typedef struct {
     //    - For GAL:     301 to 336
     //    - For NAVIC:   401 to 414
     uint16_t svId;
-    GnssSvType type;   // type of SV (GPS, SBAS, GLONASS, QZSS, BEIDOU, GALILEO)
+    GnssSvType type;   // type of SV (GPS, SBAS, GLONASS, QZSS, BEIDOU, GALILEO, NAVIC)
     float cN0Dbhz;     // signal strength
     float elevation;   // elevation of SV (in degrees)
     float azimuth;     // azimuth of SV (in degrees)
@@ -1257,6 +1269,10 @@ typedef struct {
 #define GNSS_SV_CONFIG_SBAS_INITIAL_SV_LENGTH 39
 #define GNSS_SV_CONFIG_SBAS_INITIAL2_SV_ID    183
     uint64_t sbasBlacklistSvMask;
+
+    //Navic - SV 401 maps to bit 0
+#define GNSS_SV_CONFIG_NAVIC_INITIAL_SV_ID 401
+    uint64_t navicBlacklistSvMask;
 } GnssSvIdConfig;
 
 // Specify the valid mask for robust location configure
@@ -1314,6 +1330,7 @@ struct GnssConfig{
     std::vector<GnssSvIdSource> blacklistedSvIds;
     GnssConfigRobustLocation robustLocationConfig;
     uint16_t minGpsWeek;
+    uint8_t minSvElevation;
 
     inline bool equals(const GnssConfig& config) {
         if (flags == config.flags &&
@@ -1329,7 +1346,8 @@ struct GnssConfig{
                 suplModeMask == config.suplModeMask  &&
                 blacklistedSvIds == config.blacklistedSvIds &&
                 robustLocationConfig.equals(config.robustLocationConfig) &&
-                minGpsWeek == config.minGpsWeek) {
+                minGpsWeek == config.minGpsWeek &&
+                minSvElevation == config.minSvElevation) {
             return true;
         }
         return false;

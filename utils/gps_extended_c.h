@@ -131,7 +131,11 @@ typedef enum {
     LOC_SUPPORTED_FEATURE_CONSTELLATION_ENABLEMENT_V02, /**< Support constellation enablement */
     LOC_SUPPORTED_FEATURE_AGPM_V02, /**< Support AGPM feature */
     LOC_SUPPORTED_FEATURE_XTRA_INTEGRITY, /**< Support XTRA integrity */
-    LOC_SUPPORTED_FEATURE_FDCL_2 /**< Support FDCL V2 */
+    LOC_SUPPORTED_FEATURE_FDCL_2, /**< Support FDCL V2 */
+    LOC_SUPPORTED_FEATURE_LOCATION_PRIVACY, /**<  Support the location privacy feature */
+    LOC_SUPPORTED_FEATURE_NAVIC, /**<  Support the NavIC constellation */
+    LOC_SUPPORTED_FEATURE_ENV_AIDING, /**<  Support Environment Aiding */
+    LOC_SUPPORTED_FEATURE_ROBUST_LOCATION, /**<  Support Robust Location feature */
 } loc_supported_feature_enum;
 
 typedef struct {
@@ -422,6 +426,8 @@ typedef uint32_t LocNavSolutionMask;
 #define LOC_NAV_MASK_PPP_CORRECTION ((LocNavSolutionMask)0x0040)
 /**<  Bitmask to specify whether Position Report is RTK fixed corrected   */
 #define LOC_NAV_MASK_RTK_FIXED_CORRECTION ((LocNavSolutionMask)0x0080)
+/**<  Bitmask specifying whether only SBAS corrected SVs are used for the fix */
+#define LOC_NAV_MASK_ONLY_SBAS_CORRECTED_SV_USED ((LocNavSolutionMask)0x0100)
 
 typedef uint32_t LocPosDataMask;
 /* Bitmask to specify whether Navigation data has Forward Acceleration  */
@@ -478,6 +484,13 @@ typedef uint32_t LocPosTechMask;
 #define LOC_POS_TECH_MASK_INJECTED_COARSE_POSITION ((LocPosTechMask)0x00000020)
 #define LOC_POS_TECH_MASK_AFLT ((LocPosTechMask)0x00000040)
 #define LOC_POS_TECH_MASK_HYBRID ((LocPosTechMask)0x00000080)
+
+/* Checking svIdOneBase can be set to the corresponding bit in mask */
+#define svFitsMask(mask, svIdOneBase)                 \
+    ((svIdOneBase) >= 1 && (svIdOneBase) <= (sizeof(mask) << 3))
+/* Setting svIdOneBase specific bit in the mask if the bit offset fits */
+#define setSvMask(mask, svIdOneBase)                  \
+    if (svFitsMask(mask, svIdOneBase)) mask |= (1ULL << ((svIdOneBase) - 1))
 
 typedef enum {
     LOC_RELIABILITY_NOT_SET = 0,
@@ -1483,26 +1496,27 @@ typedef uint64_t GpsSvMeasHeaderFlags;
 #define GNSS_SV_MEAS_HEADER_HAS_GAL_BDS_INTER_SYSTEM_BIAS  0x00000100
 #define GNSS_SV_MEAS_HEADER_HAS_GPSL1L5_TIME_BIAS          0x00000200
 #define GNSS_SV_MEAS_HEADER_HAS_GALE1E5A_TIME_BIAS         0x00000400
-#define GNSS_SV_MEAS_HEADER_HAS_GPS_SYSTEM_TIME            0x00000800
-#define GNSS_SV_MEAS_HEADER_HAS_GAL_SYSTEM_TIME            0x00001000
-#define GNSS_SV_MEAS_HEADER_HAS_BDS_SYSTEM_TIME            0x00002000
-#define GNSS_SV_MEAS_HEADER_HAS_QZSS_SYSTEM_TIME           0x00004000
-#define GNSS_SV_MEAS_HEADER_HAS_GLO_SYSTEM_TIME            0x00008000
-#define GNSS_SV_MEAS_HEADER_HAS_GPS_SYSTEM_TIME_EXT        0x00010000
-#define GNSS_SV_MEAS_HEADER_HAS_GAL_SYSTEM_TIME_EXT        0x00020000
-#define GNSS_SV_MEAS_HEADER_HAS_BDS_SYSTEM_TIME_EXT        0x00040000
-#define GNSS_SV_MEAS_HEADER_HAS_QZSS_SYSTEM_TIME_EXT       0x00080000
-#define GNSS_SV_MEAS_HEADER_HAS_GLO_SYSTEM_TIME_EXT        0x00100000
-#define GNSS_SV_MEAS_HEADER_HAS_REF_COUNT_TICKS            0x00200000
-#define GNSS_SV_MEAS_HEADER_HAS_DGNSS_CORRECTION_SOURCE_TYPE  0x00400000
-#define GNSS_SV_MEAS_HEADER_HAS_DGNSS_CORRECTION_SOURCE_ID    0x00800000
-#define GNSS_SV_MEAS_HEADER_HAS_DGNSS_REF_STATION_ID          0x01000000
-#define GNSS_SV_MEAS_HEADER_HAS_GPS_NAVIC_INTER_SYSTEM_BIAS   0x02000000
-#define GNSS_SV_MEAS_HEADER_HAS_GAL_NAVIC_INTER_SYSTEM_BIAS   0x04000000
-#define GNSS_SV_MEAS_HEADER_HAS_GLO_NAVIC_INTER_SYSTEM_BIAS   0x08000000
-#define GNSS_SV_MEAS_HEADER_HAS_BDS_NAVIC_INTER_SYSTEM_BIAS   0x10000000
-#define GNSS_SV_MEAS_HEADER_HAS_NAVIC_SYSTEM_TIME             0x20000000
-#define GNSS_SV_MEAS_HEADER_HAS_NAVIC_SYSTEM_TIME_EXT         0x40000000
+#define GNSS_SV_MEAS_HEADER_HAS_BDSB1IB2A_TIME_BIAS        0x00000800
+#define GNSS_SV_MEAS_HEADER_HAS_GPS_SYSTEM_TIME            0x00001000
+#define GNSS_SV_MEAS_HEADER_HAS_GAL_SYSTEM_TIME            0x00002000
+#define GNSS_SV_MEAS_HEADER_HAS_BDS_SYSTEM_TIME            0x00004000
+#define GNSS_SV_MEAS_HEADER_HAS_QZSS_SYSTEM_TIME           0x00008000
+#define GNSS_SV_MEAS_HEADER_HAS_GLO_SYSTEM_TIME            0x00010000
+#define GNSS_SV_MEAS_HEADER_HAS_GPS_SYSTEM_TIME_EXT        0x00020000
+#define GNSS_SV_MEAS_HEADER_HAS_GAL_SYSTEM_TIME_EXT        0x00040000
+#define GNSS_SV_MEAS_HEADER_HAS_BDS_SYSTEM_TIME_EXT        0x00080000
+#define GNSS_SV_MEAS_HEADER_HAS_QZSS_SYSTEM_TIME_EXT       0x00100000
+#define GNSS_SV_MEAS_HEADER_HAS_GLO_SYSTEM_TIME_EXT        0x00200000
+#define GNSS_SV_MEAS_HEADER_HAS_REF_COUNT_TICKS            0x00400000
+#define GNSS_SV_MEAS_HEADER_HAS_DGNSS_CORRECTION_SOURCE_TYPE  0x00800000
+#define GNSS_SV_MEAS_HEADER_HAS_DGNSS_CORRECTION_SOURCE_ID    0x01000000
+#define GNSS_SV_MEAS_HEADER_HAS_DGNSS_REF_STATION_ID          0x02000000
+#define GNSS_SV_MEAS_HEADER_HAS_GPS_NAVIC_INTER_SYSTEM_BIAS   0x04000000
+#define GNSS_SV_MEAS_HEADER_HAS_GAL_NAVIC_INTER_SYSTEM_BIAS   0x08000000
+#define GNSS_SV_MEAS_HEADER_HAS_GLO_NAVIC_INTER_SYSTEM_BIAS   0x10000000
+#define GNSS_SV_MEAS_HEADER_HAS_BDS_NAVIC_INTER_SYSTEM_BIAS   0x20000000
+#define GNSS_SV_MEAS_HEADER_HAS_NAVIC_SYSTEM_TIME             0x40000000
+#define GNSS_SV_MEAS_HEADER_HAS_NAVIC_SYSTEM_TIME_EXT         0x80000000
 
 typedef struct
 {
@@ -1528,6 +1542,7 @@ typedef struct
     Gnss_InterSystemBiasStructType              bdsNavicInterSystemBias;
     Gnss_InterSystemBiasStructType              gpsL1L5TimeBias;
     Gnss_InterSystemBiasStructType              galE1E5aTimeBias;
+    Gnss_InterSystemBiasStructType              bdsB1iB2aTimeBias;
 
     GnssSystemTimeStructType                    gpsSystemTime;
     GnssSystemTimeStructType                    galSystemTime;
