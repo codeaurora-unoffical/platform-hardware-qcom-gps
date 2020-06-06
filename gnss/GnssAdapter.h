@@ -343,7 +343,7 @@ public:
     void setConfigCommand();
     void requestUlpCommand();
     void initEngHubProxyCommand();
-    uint32_t* gnssUpdateConfigCommand(GnssConfig config);
+    uint32_t* gnssUpdateConfigCommand(const GnssConfig& config);
     uint32_t* gnssGetConfigCommand(GnssConfigFlagsMask mask);
     uint32_t gnssDeleteAidingDataCommand(GnssAidingData& data);
     void deleteAidingData(const GnssAidingData &data, uint32_t sessionId);
@@ -391,6 +391,7 @@ public:
     uint32_t configLeverArmCommand(const LeverArmConfigInfo& configInfo);
     uint32_t configRobustLocationCommand(bool enable, bool enableForE911);
     uint32_t configMinGpsWeekCommand(uint16_t minGpsWeek);
+    uint32_t configBodyToSensorMountParamsCommand(const BodyToSensorMountParams& b2sParams);
 
     /* ========= ODCPI ===================================================================== */
     /* ======== COMMANDS ====(Called from Client Thread)==================================== */
