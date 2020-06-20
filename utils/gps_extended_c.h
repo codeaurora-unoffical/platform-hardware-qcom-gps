@@ -2226,6 +2226,104 @@ enum PowerStateType {
     POWER_STATE_SHUTDOWN = 3
 };
 
+enum VehicleSensorConfigurationInput {
+    /** Auto-detect availability of vehicle sensor input
+     *  Note: This is the recommended configuration for after-market
+     *  deployments which have access to vehicle sensor data port
+     *  (e.g: CAN), but the data decode-ability on the port is not
+     *  assured, due to varied or older vehicle make and model-year.
+     *  This setting also alters QDR/IOTDR error handling
+     *  functionality during vehicle sensor (intermittent)
+     *  outage, to be more accommodative and try to remain in DR
+     *  mode in case of error. */
+    VEHICLE_SENSOR_INPUT_CONFIG_AUTODETECT = 1,
+    /** Vehicle sensor input is available
+     *  Note: This is the recommended configuration for product
+     *  deployments like factory-fit, which have access to vehicle
+     *  sensor data port (e.g: CAN) and data on the port is
+     *  decode-able/known. This setting also alters QDR/IOTDR error
+     *  handling functionality during vehicle sensor (intermittent)
+     *  outage, to be conservative and fall back to non-DR mode
+     *  in case of error. */
+    VEHICLE_SENSOR_INPUT_CONFIG_AVAILABLE = 2,
+    /** Vehicle sensor input is unavailable
+     *  Note: Recommended configuration for product deployments where
+     *  vehicle sensor data is not available all together.  */
+    VEHICLE_SENSOR_INPUT_CONFIG_UNAVAILABLE = 3,
+} ;
+
+enum GnssSignalLevel {
+    /** Auto-detect received GNSS signal level.
+     *  Note: With this setting QDR/IOTDR will attempt to determine
+     *  received signal level. If the receiver is started in
+     *  challenging environments, the auto-detection may
+     *  conservatively estimate the received GNSS signal level. By
+     *  virtue of placement/mounting of GNSS antenna if the expected
+     *  received signal strength range is known, instead of using
+     *  auto-detect option, it is recommended to use one of the
+     *  below other options. */
+    GNSS_SIGNAL_LEVEL_AUTODETECT = 1,
+    /** Strongest received GNSS signal level in open sky condition
+     *  is >= 40dBHz. */
+    GNSS_SIGNAL_LEVEL_HIGH    = 2,
+    /** Strongest received GNSS signal level in open sky condition
+     *  is [30dbHz, 40dBHz). */
+    GNSS_SIGNAL_LEVEL_MED     = 3,
+    /** Strongest received GNSS signal level in open sky condition
+     *  is < 30dbHz. */
+    GNSS_SIGNAL_LEVEL_LOW     = 4,
+};
+
+enum PowerSupplyContiniuityStatus {
+    /** Power supply continuity since last session-stop is
+     *  unknown. */
+    POWER_CONTINUITY_STATUS_UNKNOWN      = 1,
+    /** Power supply discontinuity detected since last
+     *  session-stop. */
+    POWER_CONTINUITY_STATUS_DISCONNECT = 2,
+    /** Power supply was continuous since last session-stop. */
+    POWER_CONTINUITY_STATUS_CONTINUOUS    = 3,
+};
+
+/** Specify the system configuration in SystemConfiguration. */
+enum SystemConfigurationType {
+    /** SystemConfiguration::systemConfigurationInfo has vehicle
+     *  sensor configuration input. */
+    SYSTEM_CONFIG_TYPE_VEHICLE_SENSOR_CONFIG_INPUT = 1,
+    /** SystemConfiguration::systemConfigurationInfo has
+     *  gnssSignalLevel. */
+    SYSTEM_CONFIG_TYPE_GNSS_SIGNAL_LEVEL       = 2,
+    /** SystemConfiguration::systemConfigurationInfo has
+     *  powerConnectionStatus. */
+    SYSTEM_CONFIG_TYPE_POWER_CONTINUITY_STATUS = 3,
+};
+
+/** Specify the System Configuration, which can be either vehicle sensor
+ *  configuration input, received GNSS signal level, or power
+ *  continuity status. The info is currenty used by DR engine */
+struct SystemConfiguration {
+    /** Specify the type in SystemConfiguration::configType.
+     *  If type is SYSTEM_CONFIG_TYPE_VEHICLE_SENSOR_CONFIG_INPUT,
+     *  SystemConfiguration::systemConfigurationInfo has valid sensorConfigInput.
+     *  If type is SYSTEM_CONFIG_TYPE_GNSS_SIGNAL_LEVEL,
+     *  SystemConfiguration::systemConfigurationInfo has valid gnssSignalLevel.
+     *  If type is SYSTEM_CONFIG_TYPE_POWER_CONTINUITY_STATUS,
+     *  SystemConfiguration::systemConfigurationInfo has valid
+     *  powerContinuityStatus.
+     *  Note: This API is meant to inject configuration one time, typically at boot or resume
+     *  and not meant to provide configuration on continual basis during run-time.
+     *  </br> */
+    SystemConfigurationType configType;
+    union {
+        /** Specify vehicle sensor configuration. */
+        VehicleSensorConfigurationInput  sensorConfigInput;
+        /** Specify received GNSS signal level.  */
+        GnssSignalLevel           gnssSignalLevel;
+        /** Specify power supply continuity status. */
+        PowerSupplyContiniuityStatus     powerContinuityStatus;
+    } systemConfigurationInfo;
+};
+
 /* Shared resources of LocIpc */
 #define LOC_IPC_HAL                    "/dev/socket/location/socket_hal"
 #define LOC_IPC_XTRA                   "/dev/socket/location/xtra/socket_xtra"

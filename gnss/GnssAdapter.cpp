@@ -5299,6 +5299,36 @@ uint32_t GnssAdapter::configRobustLocationCommand(
     return sessionId;
 }
 
+uint32_t GnssAdapter::updateDreOfSystemConfigCommand(const SystemConfiguration& sysConfig) {
+    // generated session id will be none-zero
+    uint32_t sessionId = generateSessionId();
+    LOC_LOGd("session id %u", sessionId);
+
+    struct MsgUpdateSystemConfig : public LocMsg {
+        GnssAdapter&        mAdapter;
+        uint32_t            mSessionId;
+        SystemConfiguration mSysConfig;
+
+        inline MsgUpdateSystemConfig(GnssAdapter& adapter,
+                                     uint32_t sessionId,
+                                     const SystemConfiguration& sysConfig) :
+            LocMsg(),
+            mAdapter(adapter),
+            mSessionId(sessionId),
+            mSysConfig(sysConfig) {}
+        inline virtual void proc() const {
+            LocationError err = LOCATION_ERROR_NOT_SUPPORTED;
+            if (true == mAdapter.mEngHubProxy->updateSystemConfig(mSysConfig)) {
+                err = LOCATION_ERROR_SUCCESS;
+            }
+            mAdapter.reportResponse(err, mSessionId);
+        }
+    };
+
+    sendMsg(new MsgUpdateSystemConfig(*this, sessionId, sysConfig));
+    return sessionId;
+}
+
 void GnssAdapter::reportGnssConfigEvent(uint32_t sessionId, const GnssConfig& gnssConfig)
 {
     struct MsgReportGnssConfig : public LocMsg {
