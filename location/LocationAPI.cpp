@@ -80,14 +80,27 @@ static const T1* loadLocationInterface(const char* library, const char* name) {
     }
 }
 
+static bool needsGnssTrackingInfo(LocationCallbacks& locationCallbacks)
+{
+    return (locationCallbacks.gnssLocationInfoCb != nullptr ||
+            locationCallbacks.engineLocationsInfoCb != nullptr ||
+            locationCallbacks.gnssSvCb != nullptr ||
+            locationCallbacks.gnssNmeaCb != nullptr ||
+            locationCallbacks.gnssDataCb != nullptr ||
+            locationCallbacks.gnssMeasurementsCb != nullptr);
+}
+
 static bool isGnssClient(LocationCallbacks& locationCallbacks)
 {
     return (locationCallbacks.gnssNiCb != nullptr ||
             locationCallbacks.trackingCb != nullptr ||
             locationCallbacks.gnssLocationInfoCb != nullptr ||
             locationCallbacks.engineLocationsInfoCb != nullptr ||
+            locationCallbacks.gnssSvCb != nullptr ||
+            locationCallbacks.gnssNmeaCb != nullptr ||
+            locationCallbacks.gnssDataCb != nullptr ||
             locationCallbacks.gnssMeasurementsCb != nullptr ||
-            locationCallbacks.gnssSvPolynomialCb != nullptr);
+            locationCallbacks.locationSystemInfoCb != nullptr);
 }
 
 static bool isBatchingClient(LocationCallbacks& locationCallbacks)
@@ -673,7 +686,7 @@ LocationControlAPI::disable(uint32_t id)
 }
 
 uint32_t*
-LocationControlAPI::gnssUpdateConfig(GnssConfig config)
+LocationControlAPI::gnssUpdateConfig(const GnssConfig& config)
 {
     uint32_t* ids = NULL;
     pthread_mutex_lock(&gDataMutex);
@@ -789,6 +802,49 @@ uint32_t LocationControlAPI::configLeverArm(const LeverArmConfigInfo& configInfo
 
     if (gData.gnssInterface != NULL) {
         id = gData.gnssInterface->configLeverArm(configInfo);
+    } else {
+        LOC_LOGe("No gnss interface available for Location Control API");
+    }
+
+    pthread_mutex_unlock(&gDataMutex);
+    return id;
+}
+
+uint32_t LocationControlAPI::configRobustLocation(bool enable, bool enableForE911) {
+    uint32_t id = 0;
+    pthread_mutex_lock(&gDataMutex);
+
+    if (gData.gnssInterface != NULL) {
+        id = gData.gnssInterface->configRobustLocation(enable, enableForE911);
+    } else {
+        LOC_LOGe("No gnss interface available for Location Control API");
+    }
+
+    pthread_mutex_unlock(&gDataMutex);
+    return id;
+}
+
+uint32_t LocationControlAPI::configMinGpsWeek(uint16_t minGpsWeek) {
+    uint32_t id = 0;
+    pthread_mutex_lock(&gDataMutex);
+
+    if (gData.gnssInterface != NULL) {
+        id = gData.gnssInterface->configMinGpsWeek(minGpsWeek);
+    } else {
+        LOC_LOGe("No gnss interface available for Location Control API");
+    }
+
+    pthread_mutex_unlock(&gDataMutex);
+    return id;
+}
+
+uint32_t LocationControlAPI::configBodyToSensorMountParams(
+        const BodyToSensorMountParams& b2sParams) {
+    uint32_t id = 0;
+    pthread_mutex_lock(&gDataMutex);
+
+    if (gData.gnssInterface != NULL) {
+        id = gData.gnssInterface->configBodyToSensorMountParams(b2sParams);
     } else {
         LOC_LOGe("No gnss interface available for Location Control API");
     }

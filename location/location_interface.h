@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -62,7 +62,7 @@ struct GnssInterface {
     void (*setControlCallbacks)(LocationControlCallbacks& controlCallbacks);
     uint32_t (*enable)(LocationTechnologyType techType);
     void (*disable)(uint32_t id);
-    uint32_t* (*gnssUpdateConfig)(GnssConfig config);
+    uint32_t* (*gnssUpdateConfig)(const GnssConfig& config);
     uint32_t* (*gnssGetConfig)(GnssConfigFlagsMask config);
     void (*gnssUpdateSvTypeConfig)(GnssSvTypeConfig& config);
     void (*gnssGetSvTypeConfig)(GnssSvTypeConfigCallback& callback);
@@ -78,7 +78,7 @@ struct GnssInterface {
     void (*getDebugReport)(GnssDebugReport& report);
     void (*updateConnectionStatus)(bool connected, int8_t type, bool roaming,
                                    NetworkHandle networkHandle);
-    void (*odcpiInit)(const OdcpiRequestCallback& callback);
+    void (*odcpiInit)(const OdcpiRequestCallback& callback, OdcpiPrioritytype priority);
     void (*odcpiInject)(const Location& location);
     void (*blockCPI)(double latitude, double longitude, float accuracy,
                      int blockDurationMsec, double latLonDiffThreshold);
@@ -95,6 +95,17 @@ struct GnssInterface {
                                    const GnssSvIdConfig& svIdConfig);
     uint32_t (*gnssResetSvConfig)();
     uint32_t (*configLeverArm)(const LeverArmConfigInfo& configInfo);
+    bool (*measCorrInit)(const measCorrSetCapabilitiesCb setCapabilitiesCb);
+    bool (*measCorrSetCorrections)(const GnssMeasurementCorrections gnssMeasCorr);
+    void (*measCorrClose)();
+    uint32_t (*antennaInfoInit)(const antennaInfoCb antennaInfoCallback);
+    void (*antennaInfoClose) ();
+    uint32_t (*configRobustLocation)(bool enable, bool enableForE911);
+    uint32_t (*configMinGpsWeek)(uint16_t minGpsWeek);
+    uint32_t (*configBodyToSensorMountParams)(const BodyToSensorMountParams& b2sParams);
+    void (*updateNTRIPGGAConsent)(bool consentAccepted);
+    void (*enablePPENtripStream)(const GnssNtripConnectionParams& params, bool enableRTKEngine);
+    void (*disablePPENtripStream)();
 };
 
 struct BatchingInterface {

@@ -380,18 +380,20 @@ void GnssAPIClient::onCapabilitiesCb(LocationCapabilitiesMask capabilitiesMask)
         if (capabilitiesMask & LOCATION_CAPABILITIES_CONSTELLATION_ENABLEMENT_BIT)
             data |= IGnssCallback::Capabilities::SATELLITE_BLACKLIST;
 
-        IGnssCallback::GnssSystemInfo gnssInfo;
-        if (capabilitiesMask & LOCATION_CAPABILITIES_PRIVACY_BIT) {
-            gnssInfo.yearOfHw = 2019;
-        } else if (capabilitiesMask & LOCATION_CAPABILITIES_CONSTELLATION_ENABLEMENT_BIT ||
-            capabilitiesMask & LOCATION_CAPABILITIES_AGPM_BIT) {
-            gnssInfo.yearOfHw = 2018;
-        } else if (capabilitiesMask & LOCATION_CAPABILITIES_DEBUG_NMEA_BIT) {
-            gnssInfo.yearOfHw = 2017;
-        } else if (capabilitiesMask & LOCATION_CAPABILITIES_GNSS_MEASUREMENTS_BIT) {
-            gnssInfo.yearOfHw = 2016;
-        } else {
-            gnssInfo.yearOfHw = 2015;
+        IGnssCallback::GnssSystemInfo gnssInfo = { .yearOfHw = 2015 };
+
+        if (capabilitiesMask & LOCATION_CAPABILITIES_GNSS_MEASUREMENTS_BIT) {
+            gnssInfo.yearOfHw++; // 2016
+            if (capabilitiesMask & LOCATION_CAPABILITIES_DEBUG_NMEA_BIT) {
+                gnssInfo.yearOfHw++; // 2017
+                if (capabilitiesMask & LOCATION_CAPABILITIES_CONSTELLATION_ENABLEMENT_BIT ||
+                    capabilitiesMask & LOCATION_CAPABILITIES_AGPM_BIT) {
+                    gnssInfo.yearOfHw++; // 2018
+                    if (capabilitiesMask & LOCATION_CAPABILITIES_PRIVACY_BIT) {
+                        gnssInfo.yearOfHw++; // 2019
+                    }
+                }
+            }
         }
         LOC_LOGV("%s:%d] set_system_info_cb (%d)", __FUNCTION__, __LINE__, gnssInfo.yearOfHw);
 
@@ -678,7 +680,7 @@ static void convertGnssSvStatus(GnssSvNotification& in, V1_0::IGnssCallback::Gns
         out.numSvs = static_cast<uint32_t>(V1_0::GnssMax::SVS_COUNT);
     }
     for (size_t i = 0; i < out.numSvs; i++) {
-        out.gnssSvList[i].svid = in.gnssSvs[i].svId;
+        convertGnssSvid(in.gnssSvs[i], out.gnssSvList[i].svid);
         convertGnssConstellationType(in.gnssSvs[i].type, out.gnssSvList[i].constellation);
         out.gnssSvList[i].cN0Dbhz = in.gnssSvs[i].cN0Dbhz;
         out.gnssSvList[i].elevationDegrees = in.gnssSvs[i].elevation;
@@ -701,7 +703,7 @@ static void convertGnssSvStatus(GnssSvNotification& in,
 {
     out.resize(in.count);
     for (size_t i = 0; i < in.count; i++) {
-        out[i].v1_0.svid = in.gnssSvs[i].svId;
+        convertGnssSvid(in.gnssSvs[i], out[i].v1_0.svid);
         out[i].v1_0.cN0Dbhz = in.gnssSvs[i].cN0Dbhz;
         out[i].v1_0.elevationDegrees = in.gnssSvs[i].elevation;
         out[i].v1_0.azimuthDegrees = in.gnssSvs[i].azimuth;
