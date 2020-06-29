@@ -56,6 +56,7 @@ extern "C" {
   mm = (tv.tv_sec%3600)/60;                                    \
   ss = tv.tv_sec%60;                                           \
   fprintf(stdout,"%02d:%02d:%02d.%06ld]" format "\n", hh, mm, ss, tv.tv_usec,##x);    \
+  fflush(stdout); \
 }
 
 #define ALOGE(format, x...) TS_PRINTF(" %d E %s: " format , getpid(), LOG_TAG, ##x)
