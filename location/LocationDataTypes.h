@@ -142,7 +142,7 @@ typedef enum {
     LOCATION_NAV_DATA_HAS_PITCH_UNC_BIT      = (1<<9)
 } GnssLocationPosDataBits;
 
-typedef uint32_t GnssLocationInfoFlagMask;
+typedef uint64_t GnssLocationInfoFlagMask;
 typedef enum {
     GNSS_LOCATION_INFO_ALTITUDE_MEAN_SEA_LEVEL_BIT      = (1<<0), // valid altitude mean sea level
     GNSS_LOCATION_INFO_DOP_BIT                          = (1<<1), // valid pdop, hdop, and vdop
@@ -176,6 +176,9 @@ typedef enum {
     GNSS_LOCATION_INFO_OUTPUT_ENG_TYPE_BIT              = (1<<27), // valid output engine type
     GNSS_LOCATION_INFO_OUTPUT_ENG_MASK_BIT              = (1<<28), // valid output engine mask
     GNSS_LOCATION_INFO_CONFORMITY_INDEX_BIT             = (1<<29), // valid conformity index
+    GNSS_LOCATION_INFO_LLA_VRP_BASED_BIT                = (1<<30), // valid VRP-based lat/long/alt
+    GNSS_LOCATION_INFO_ENU_VELOCITY_VRP_BASED_BIT       = (1ULL<<31), // VRP-based east/north/up vel
+    GNSS_LOCATION_INFO_DR_SOLUTION_STATUS_MASK_BIT      = (1ULL<<32), // Valid DR solution status
 } GnssLocationInfoFlagBits;
 
 typedef enum {
@@ -969,6 +972,10 @@ typedef struct {
     SystemTimeStructUnion u;
 } GnssSystemTime;
 
+typedef uint64_t DrSolutionStatusMask;
+#define DR_SOLUTION_VEHICLE_SENSOR_SPEED_INPUT_DETECTED (1<<0)
+#define DR_SOLUTION_VEHICLE_SENSOR_SPEED_INPUT_USED     (1<<1)
+
 typedef struct {
     uint32_t size;                      // set to sizeof(GnssLocationInfo)
     Location location;                  // basic locaiton info, latitude, longitude, and etc
@@ -1021,6 +1028,8 @@ typedef struct {
      * navigation solution conform to expectations.
      * Range: 0 (least conforming) to 1 (most conforming) */
     float conformityIndex;
+    /* Dead reckoning position engine status */
+    DrSolutionStatusMask drSolutionStatusMask;
 } GnssLocationInfoNotification;
 
 typedef struct {
