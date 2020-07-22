@@ -426,6 +426,8 @@ typedef uint32_t LocNavSolutionMask;
 #define LOC_NAV_MASK_PPP_CORRECTION ((LocNavSolutionMask)0x0040)
 /**<  Bitmask to specify whether Position Report is RTK fixed corrected   */
 #define LOC_NAV_MASK_RTK_FIXED_CORRECTION ((LocNavSolutionMask)0x0080)
+/**<  Bitmask specifying whether only SBAS corrected SVs are used for the fix */
+#define LOC_NAV_MASK_ONLY_SBAS_CORRECTED_SV_USED ((LocNavSolutionMask)0x0100)
 
 typedef uint32_t LocPosDataMask;
 /* Bitmask to specify whether Navigation data has Forward Acceleration  */
@@ -466,7 +468,7 @@ typedef uint32_t GnssAdditionalSystemInfoMask;
 #define QZSS_SV_PRN_MIN     193
 #define QZSS_SV_PRN_MAX     197
 #define BDS_SV_PRN_MIN      201
-#define BDS_SV_PRN_MAX      237
+#define BDS_SV_PRN_MAX      263
 #define GAL_SV_PRN_MIN      301
 #define GAL_SV_PRN_MAX      336
 #define NAVIC_SV_PRN_MIN    401
@@ -482,6 +484,13 @@ typedef uint32_t LocPosTechMask;
 #define LOC_POS_TECH_MASK_INJECTED_COARSE_POSITION ((LocPosTechMask)0x00000020)
 #define LOC_POS_TECH_MASK_AFLT ((LocPosTechMask)0x00000040)
 #define LOC_POS_TECH_MASK_HYBRID ((LocPosTechMask)0x00000080)
+
+/* Checking svIdOneBase can be set to the corresponding bit in mask */
+#define svFitsMask(mask, svIdOneBase)                 \
+    ((svIdOneBase) >= 1 && (svIdOneBase) <= (sizeof(mask) << 3))
+/* Setting svIdOneBase specific bit in the mask if the bit offset fits */
+#define setSvMask(mask, svIdOneBase)                  \
+    if (svFitsMask(mask, svIdOneBase)) mask |= (1ULL << ((svIdOneBase) - 1))
 
 typedef enum {
     LOC_RELIABILITY_NOT_SET = 0,
@@ -656,7 +665,7 @@ typedef struct {
      *    - For GLONASS: 65 to 96
      *    - For SBAS:    120 to 158 and 183 to 191
      *    - For QZSS:    193 to 197
-     *    - For BDS:     201 to 237
+     *    - For BDS:     201 to 263
      *    - For GAL:     301 to 336
      *    - For NAVIC:   401 to 414 */
     uint16_t gnssSvId;

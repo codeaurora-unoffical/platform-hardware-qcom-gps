@@ -38,7 +38,7 @@
 #define GNSS_NI_REQUESTOR_MAX  (256)
 #define GNSS_NI_MESSAGE_ID_MAX (2048)
 #define GNSS_SV_MAX            (128)
-#define GNSS_MEASUREMENTS_MAX  (64)
+#define GNSS_MEASUREMENTS_MAX  (128)
 #define GNSS_UTC_TIME_OFFSET   (3657)
 
 #define GNSS_BUGREPORT_GPS_MIN    (1)
@@ -100,13 +100,24 @@ typedef enum {
 
 typedef uint32_t GnssLocationNavSolutionMask;
 typedef enum {
-    LOCATION_SBAS_CORRECTION_IONO_BIT  = (1<<0), // SBAS ionospheric correction is used
-    LOCATION_SBAS_CORRECTION_FAST_BIT  = (1<<1), // SBAS fast correction is used
-    LOCATION_SBAS_CORRECTION_LONG_BIT  = (1<<2), // SBAS long-tem correction is used
-    LOCATION_SBAS_INTEGRITY_BIT        = (1<<3), // SBAS integrity information is used
-    LOCATION_NAV_CORRECTION_DGNSS_BIT  = (1<<4), // Position Report is DGNSS corrected
-    LOCATION_NAV_CORRECTION_RTK_BIT    = (1<<5), // Position Report is RTK corrected
-    LOCATION_NAV_CORRECTION_PPP_BIT    = (1<<6) // Position Report is PPP corrected
+    // SBAS ionospheric correction is used
+    LOCATION_SBAS_CORRECTION_IONO_BIT  = (1<<0),
+    // SBAS fast correction is used
+    LOCATION_SBAS_CORRECTION_FAST_BIT  = (1<<1),
+    // SBAS long-tem correction is used
+    LOCATION_SBAS_CORRECTION_LONG_BIT  = (1<<2),
+    // SBAS integrity information is used
+    LOCATION_SBAS_INTEGRITY_BIT        = (1<<3),
+    // Position Report is DGNSS corrected
+    LOCATION_NAV_CORRECTION_DGNSS_BIT  = (1<<4),
+     // Position Report is RTK corrected
+    LOCATION_NAV_CORRECTION_RTK_BIT    = (1<<5),
+    // Position Report is PPP corrected
+    LOCATION_NAV_CORRECTION_PPP_BIT    = (1<<6),
+    // Posiiton Report is RTF fixed corrected
+    LOCATION_NAV_CORRECTION_RTK_FIXED_BIT  = (1<<7),
+    // Position report is computed with only SBAS corrected SVs.
+    LOCATION_NAV_CORRECTION_ONLY_SBAS_CORRECTED_SV_USED_BIT = (1<<8)
 } GnssLocationNavSolutionBits;
 
 typedef uint32_t GnssLocationPosTechMask;
@@ -1116,7 +1127,7 @@ typedef struct {
     //    - For GLONASS: 65 to 96
     //    - For SBAS:    120 to 158 and 183 to 191
     //    - For QZSS:    193 to 197
-    //    - For BDS:     201 to 237
+    //    - For BDS:     201 to 263
     //    - For GAL:     301 to 336
     //    - For NAVIC:   401 to 414
     uint16_t svId;

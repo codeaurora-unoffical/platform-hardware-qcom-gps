@@ -2434,9 +2434,11 @@ GnssAdapter::restartSessions(bool modemSSR)
     // SPE will be restarted now, so set this variable to false.
     mSPEAlreadyRunningAtHighestInterval = false;
 
-    // inform engine hub that GNSS session is about to start
-    mEngHubProxy->gnssSetFixMode(mLocPositionMode);
-    mEngHubProxy->gnssStartFix();
+    if (!mTrackingSessions.empty()) {
+        // inform engine hub that GNSS session is about to start
+        mEngHubProxy->gnssSetFixMode(mLocPositionMode);
+        mEngHubProxy->gnssStartFix();
+    }
 
     checkAndRestartSPESession();
 }
@@ -2637,7 +2639,8 @@ GnssAdapter::hasCallbacksToStartTracking(LocationAPI* client)
     auto it = mClientData.find(client);
     if (it != mClientData.end()) {
         if (it->second.trackingCb || it->second.gnssLocationInfoCb ||
-            it->second.engineLocationsInfoCb || it->second.gnssMeasurementsCb) {
+                it->second.engineLocationsInfoCb || it->second.gnssMeasurementsCb ||
+                it->second.gnssDataCb || it->second.gnssSvCb || it->second.gnssNmeaCb) {
             allowed = true;
         } else {
             LOC_LOGi("missing right callback to start tracking")
@@ -3388,11 +3391,12 @@ GnssAdapter::reportPositionEvent(const UlpLocation& ulpLocation,
     // this position is from QMI LOC API, then send report to engine hub
     // also, send out SPE fix promptly to the clients that have registered
     // with SPE report
-    LOC_LOGd("reportPositionEvent, eng type: %d, unpro %d, sess status %d",
-             locationExtended.locOutputEngType, ulpLocation.unpropagatedPosition, status);
+    LOC_LOGd("reportPositionEvent, eng type: %d, unpro %d, sess status %d msInWeek %d",
+             locationExtended.locOutputEngType,
+             ulpLocation.unpropagatedPosition, status, msInWeek);
 
     if (false == ulpLocation.unpropagatedPosition && pDataNotify != nullptr) {
-        reportDataEvent((GnssDataNotification&)pDataNotify, msInWeek);
+        reportDataEvent((GnssDataNotification&)(*pDataNotify), msInWeek);
     }
 
     if (true == initEngHubProxy()){
@@ -3686,7 +3690,7 @@ void
 GnssAdapter::reportSv(GnssSvNotification& svNotify)
 {
     int numSv = svNotify.count;
-    int16_t gnssSvId = 0;
+    uint16_t gnssSvId = 0;
     uint64_t svUsedIdMask = 0;
     for (int i=0; i < numSv; i++) {
         svUsedIdMask = 0;
@@ -3816,7 +3820,7 @@ GnssAdapter::reportSv(GnssSvNotification& svNotify)
 
         // If SV ID was used in previous position fix, then set USED_IN_FIX
         // flag, else clear the USED_IN_FIX flag.
-        if (svUsedIdMask & (1ULL << (gnssSvId - 1))) {
+        if (svFitsMask(svUsedIdMask, gnssSvId) && (svUsedIdMask & (1ULL << (gnssSvId - 1)))) {
             svNotify.gnssSvs[i].gnssSvOptionsMask |= GNSS_SV_OPTIONS_USED_IN_FIX_BIT;
         }
     }
@@ -3924,7 +3928,7 @@ GnssAdapter::reportDataEvent(const GnssDataNotification& dataNotify,
             mMsInWeek(msInWeek) {
         }
         inline virtual void proc() const {
-            if (-1 != mMsInWeek) {
+            if (mMsInWeek >= 0) {
                 mAdapter.getDataInformation((GnssDataNotification&)mDataNotify,
                                             mMsInWeek);
             }
