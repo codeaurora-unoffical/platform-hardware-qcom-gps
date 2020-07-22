@@ -368,6 +368,7 @@ public:
     uint32_t gnssResetSvConfigCommand();
     uint32_t configLeverArmCommand(const LeverArmConfigInfo& configInfo);
     uint32_t configRobustLocationCommand(bool enable, bool enableForE911);
+    uint32_t updateDreOfSystemConfigCommand(const SystemConfiguration& sysConfig);
 
     /* ========= ODCPI ===================================================================== */
     /* ======== COMMANDS ====(Called from Client Thread)==================================== */
@@ -413,6 +414,7 @@ public:
     virtual void reportGnssConfigEvent(uint32_t sessionId, const GnssConfig& gnssConfig);
     virtual bool reportGnssEngEnergyConsumedEvent(uint64_t energyConsumedSinceFirstBoot);
     virtual void reportLocationSystemInfoEvent(const LocationSystemInfo& locationSystemInfo);
+    virtual void reportSapInsParamsEvent(GnssSapInsParams& sapInsParams);
 
     virtual bool requestATL(int connHandle, LocAGpsType agps_type, LocApnTypeMask apn_type_mask);
     virtual bool releaseATL(int connHandle);

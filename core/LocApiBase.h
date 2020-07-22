@@ -164,6 +164,7 @@ public:
                         int msInWeek = -1);
     void reportSv(GnssSvNotification& svNotify);
     void reportSvMeasurement(GnssSvMeasurementSet &svMeasurementSet);
+    void reportSapInsParams(GnssSapInsParams &sapInsParams);
     void reportSvPolynomial(GnssSvPolynomial &svPolynomial);
     void reportSvEphemeris(GnssSvEphemerisReport &svEphemeris);
     void reportStatus(LocGpsStatusValue status);

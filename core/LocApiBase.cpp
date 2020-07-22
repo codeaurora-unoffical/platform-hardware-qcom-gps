@@ -432,6 +432,14 @@ void LocApiBase::reportSvMeasurement(GnssSvMeasurementSet &svMeasurementSet)
     );
 }
 
+void LocApiBase::reportSapInsParams(GnssSapInsParams &sapInsParams)
+{
+    // loop through adapters, and deliver to all adapters.
+    TO_ALL_LOCADAPTERS(
+        mLocAdapters[i]->reportSapInsParamsEvent(sapInsParams)
+    );
+}
+
 void LocApiBase::reportSvPolynomial(GnssSvPolynomial &svPolynomial)
 {
     // loop through adapters, and deliver to all adapters.

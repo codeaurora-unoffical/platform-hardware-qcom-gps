@@ -168,6 +168,7 @@ public:
     virtual void reportDataEvent(const GnssDataNotification& dataNotify, int msInWeek);
     virtual void reportNmeaEvent(const char* nmea, size_t length);
     virtual void reportSvMeasurementEvent(GnssSvMeasurementSet &svMeasurementSet);
+    virtual void reportSapInsParamsEvent(GnssSapInsParams &sapInsParams);
     virtual void reportSvPolynomialEvent(GnssSvPolynomial &svPolynomial);
     virtual void reportSvEphemerisEvent(GnssSvEphemerisReport &svEphemeris);
     virtual void reportStatus(LocGpsStatusValue status);

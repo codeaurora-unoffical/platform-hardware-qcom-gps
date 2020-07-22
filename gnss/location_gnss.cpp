@@ -84,6 +84,7 @@ static uint32_t gnssUpdateSvConfig(const GnssSvTypeConfig& svTypeConfig,
 static uint32_t gnssResetSvConfig();
 static uint32_t configLeverArm(const LeverArmConfigInfo& configInfo);
 static uint32_t configRobustLocation(bool enable, bool enableForE911);
+static uint32_t updateDreOfSystemConfig(const SystemConfiguration& sysConfig);
 
 static const GnssInterface gGnssInterface = {
     sizeof(GnssInterface),
@@ -127,6 +128,7 @@ static const GnssInterface gGnssInterface = {
     gnssResetSvConfig,
     configLeverArm,
     configRobustLocation,
+    updateDreOfSystemConfig,
 };
 
 #ifndef DEBUG_X86
@@ -432,6 +434,14 @@ static uint32_t configLeverArm(const LeverArmConfigInfo& configInfo){
 static uint32_t configRobustLocation(bool enable, bool enableForE911){
     if (NULL != gGnssAdapter) {
         return gGnssAdapter->configRobustLocationCommand(enable, enableForE911);
+    } else {
+        return 0;
+    }
+}
+
+static uint32_t updateDreOfSystemConfig(const SystemConfiguration& sysConfig) {
+    if (NULL != gGnssAdapter) {
+        return gGnssAdapter->updateDreOfSystemConfigCommand(sysConfig);
     } else {
         return 0;
     }

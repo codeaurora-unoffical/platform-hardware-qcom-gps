@@ -490,6 +490,7 @@ typedef enum {
     GNSS_AIDING_DATA_SV_TIME_BIT         = (1<<10),// reset satellite time
     GNSS_AIDING_DATA_SV_MB_DATA          = (1<<11),// delete multiband data
     GNSS_AIDING_DATA_SV_POLY_BIT         = (1<<12),// poly
+    GNSS_AIDING_DATA_SAP_INS_BIT         = (1<<13), // SAP INS Params
 } GnssAidingDataSvBits;
 
 typedef uint32_t GnssAidingDataSvTypeMask;

@@ -2206,12 +2206,13 @@ GnssAdapter::updateClientsEventMask()
         mask |= LOC_API_ADAPTER_BIT_GNSS_SV_EPHEMERIS_REPORT;
         mask |= LOC_API_ADAPTER_BIT_LOC_SYSTEM_INFO;
         mask |= LOC_API_ADAPTER_BIT_EVENT_REPORT_INFO;
+        mask |= LOC_API_ADAPTER_BIT_SAP_INS_REPORT_INFO;
 
         // Nhz measurement bit is set based on callback from loc eng hub
         // for Nhz engines.
         mask |= checkMask(LOC_API_ADAPTER_BIT_GNSS_NHZ_MEASUREMENT);
 
-        LOC_LOGd("Auto usecase, Enable MEAS/POLY/EPHEMERIS - mask 0x%" PRIx64 "",
+        LOC_LOGd("Auto usecase, Enable MEAS/POLY/EPHEMERIS/SAP_INS - mask 0x%" PRIx64 "",
                 mask);
     }
 
@@ -4042,6 +4043,13 @@ GnssAdapter::reportSvMeasurementEvent(GnssSvMeasurementSet &svMeasurementSet)
 }
 
 void
+GnssAdapter::reportSapInsParamsEvent(GnssSapInsParams &sapInsParams)
+{
+    LOC_LOGD("%s]: ", __func__);
+    mEngHubProxy->gnssReportSapInsParams(sapInsParams);
+}
+
+void
 GnssAdapter::reportSvPolynomialEvent(GnssSvPolynomial &svPolynomial)
 {
     LOC_LOGD("%s]: ", __func__);
@@ -5296,6 +5304,36 @@ uint32_t GnssAdapter::configRobustLocationCommand(
     };
 
     sendMsg(new MsgConfigRobustLocation(*this, sessionId, enable, enableForE911));
+    return sessionId;
+}
+
+uint32_t GnssAdapter::updateDreOfSystemConfigCommand(const SystemConfiguration& sysConfig) {
+    // generated session id will be none-zero
+    uint32_t sessionId = generateSessionId();
+    LOC_LOGd("session id %u", sessionId);
+
+    struct MsgUpdateSystemConfig : public LocMsg {
+        GnssAdapter&        mAdapter;
+        uint32_t            mSessionId;
+        SystemConfiguration mSysConfig;
+
+        inline MsgUpdateSystemConfig(GnssAdapter& adapter,
+                                     uint32_t sessionId,
+                                     const SystemConfiguration& sysConfig) :
+            LocMsg(),
+            mAdapter(adapter),
+            mSessionId(sessionId),
+            mSysConfig(sysConfig) {}
+        inline virtual void proc() const {
+            LocationError err = LOCATION_ERROR_NOT_SUPPORTED;
+            if (true == mAdapter.mEngHubProxy->updateSystemConfig(mSysConfig)) {
+                err = LOCATION_ERROR_SUCCESS;
+            }
+            mAdapter.reportResponse(err, mSessionId);
+        }
+    };
+
+    sendMsg(new MsgUpdateSystemConfig(*this, sessionId, sysConfig));
     return sessionId;
 }
 

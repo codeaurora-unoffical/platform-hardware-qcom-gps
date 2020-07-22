@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -76,6 +76,10 @@ public:
         return false;
     }
 
+    inline virtual bool gnssReportSapInsParams(const GnssSapInsParams& sapInsParams) {
+        (void) sapInsParams;
+        return false;
+    }
     inline virtual bool gnssReportSvPolynomial(const GnssSvPolynomial& svPolynomial) {
         (void) svPolynomial;
         return false;
@@ -104,6 +108,12 @@ public:
 
     inline virtual bool configLeverArm(const LeverArmConfigInfo& configInfo) {
         (void) configInfo;
+        return false;
+    }
+
+    inline virtual bool updateSystemConfig(
+            const SystemConfiguration& sysConfig) {
+        (void) sysConfig;
         return false;
     }
 };
