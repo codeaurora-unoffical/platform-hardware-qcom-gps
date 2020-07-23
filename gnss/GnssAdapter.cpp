@@ -528,6 +528,10 @@ GnssAdapter::convertLocationInfo(GnssLocationInfoNotification& out,
         out.flags |= GNSS_LOCATION_INFO_CONFORMITY_INDEX_BIT;
         out.conformityIndex = locationExtended.conformityIndex;
     }
+    if (GPS_LOCATION_EXTENDED_HAS_DR_SOLUTION_STATIUS_MASK & locationExtended.flags) {
+        out.flags |= GNSS_LOCATION_INFO_DR_SOLUTION_STATUS_MASK_BIT;
+        out.drSolutionStatusMask = locationExtended.drSolutionStatusMask;
+    }
 }
 
 
