@@ -402,12 +402,13 @@ typedef uint64_t GpsLocationExtendedFlags;
 #define GPS_LOCATION_EXTENDED_HAS_DGNSS_DATA_AGE               0x80000000000
  /** GpsLocationExtended has the conformityIndex computed from
   *  robust location feature. */
-#define GPS_LOCATION_EXTENDED_HAS_CONFORMITY_INDEX             0x100000000000
+#define GPS_LOCATION_EXTENDED_HAS_CONFORMITY_INDEX            0x100000000000
  /** GpsLocationExtended has the llaVRPased. */
 #define GPS_LOCATION_EXTENDED_HAS_LLA_VRP_BASED                0x200000000000
 /** GpsLocationExtended has the velocityVRPased. */
 #define GPS_LOCATION_EXTENDED_HAS_ENU_VELOCITY_LLA_VRP_BASED   0x400000000000
 #define GPS_LOCATION_EXTENDED_HAS_UPPER_TRIANGLE_FULL_COV_MATRIX 0x800000000000
+#define GPS_LOCATION_EXTENDED_HAS_DR_SOLUTION_STATUS_MASK        0x1000000000000
 
 typedef uint32_t LocNavSolutionMask;
 /* Bitmask to specify whether SBAS ionospheric correction is used  */
@@ -468,7 +469,7 @@ typedef uint32_t GnssAdditionalSystemInfoMask;
 #define QZSS_SV_PRN_MIN     193
 #define QZSS_SV_PRN_MAX     197
 #define BDS_SV_PRN_MIN      201
-#define BDS_SV_PRN_MAX      237
+#define BDS_SV_PRN_MAX      263
 #define GAL_SV_PRN_MIN      301
 #define GAL_SV_PRN_MAX      336
 #define NAVIC_SV_PRN_MIN    401
@@ -665,7 +666,7 @@ typedef struct {
      *    - For GLONASS: 65 to 96
      *    - For SBAS:    120 to 158 and 183 to 191
      *    - For QZSS:    193 to 197
-     *    - For BDS:     201 to 237
+     *    - For BDS:     201 to 263
      *    - For GAL:     301 to 336
      *    - For NAVIC:   401 to 414 */
     uint16_t gnssSvId;
@@ -861,6 +862,7 @@ typedef struct {
               pvx,vx, pvx,vy, pvx,vz, pvy,vy, pvy,vz, pvz,vz is in meters/seconds
     */
     float upperTriangleFullCovMatrix[COV_MATRIX_SIZE];
+    DrSolutionStatusMask drSolutionStatusMask;
 } GpsLocationExtended;
 
 enum loc_sess_status {

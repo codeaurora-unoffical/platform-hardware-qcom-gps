@@ -97,6 +97,9 @@ static bool isGnssClient(LocationCallbacks& locationCallbacks)
             locationCallbacks.trackingCb != nullptr ||
             locationCallbacks.gnssLocationInfoCb != nullptr ||
             locationCallbacks.engineLocationsInfoCb != nullptr ||
+            locationCallbacks.gnssSvCb != nullptr ||
+            locationCallbacks.gnssNmeaCb != nullptr ||
+            locationCallbacks.gnssDataCb != nullptr ||
             locationCallbacks.gnssMeasurementsCb != nullptr ||
             locationCallbacks.locationSystemInfoCb != nullptr);
 }
@@ -750,12 +753,15 @@ LocationControlAPI::gnssDeleteAidingData(GnssAidingData& data)
     return id;
 }
 
-uint32_t LocationControlAPI::resetConstellationConfig() {
+uint32_t LocationControlAPI::configConstellations(
+        const GnssSvTypeConfig& constellationEnablementConfig,
+        const GnssSvIdConfig&   blacklistSvConfig) {
     uint32_t id = 0;
     pthread_mutex_lock(&gDataMutex);
 
     if (gData.gnssInterface != NULL) {
-        id = gData.gnssInterface->gnssResetSvConfig();
+        id = gData.gnssInterface->gnssUpdateSvConfig(
+                constellationEnablementConfig, blacklistSvConfig);
     } else {
         LOC_LOGe("No gnss interface available for Location Control API");
     }
@@ -764,15 +770,13 @@ uint32_t LocationControlAPI::resetConstellationConfig() {
     return id;
 }
 
-uint32_t LocationControlAPI::configConstellations(
-        const GnssSvTypeConfig& svTypeConfig,
-        const GnssSvIdConfig&   svIdConfig) {
+uint32_t LocationControlAPI::configConstellationSecondaryBand(
+        const GnssSvTypeConfig& secondaryBandConfig) {
     uint32_t id = 0;
     pthread_mutex_lock(&gDataMutex);
 
     if (gData.gnssInterface != NULL) {
-        id = gData.gnssInterface->gnssUpdateSvConfig(
-                svTypeConfig, svIdConfig);
+        id = gData.gnssInterface->gnssUpdateSecondaryBandConfig(secondaryBandConfig);
     } else {
         LOC_LOGe("No gnss interface available for Location Control API");
     }
@@ -854,13 +858,13 @@ uint32_t LocationControlAPI::configMinGpsWeek(uint16_t minGpsWeek) {
     return id;
 }
 
-uint32_t LocationControlAPI::configBodyToSensorMountParams(
-        const BodyToSensorMountParams& b2sParams) {
+uint32_t LocationControlAPI::configDeadReckoningEngineParams(
+        const DeadReckoningEngineConfig& dreConfig) {
     uint32_t id = 0;
     pthread_mutex_lock(&gDataMutex);
 
     if (gData.gnssInterface != NULL) {
-        id = gData.gnssInterface->configBodyToSensorMountParams(b2sParams);
+        id = gData.gnssInterface->configDeadReckoningEngineParams(dreConfig);
     } else {
         LOC_LOGe("No gnss interface available for Location Control API");
     }
