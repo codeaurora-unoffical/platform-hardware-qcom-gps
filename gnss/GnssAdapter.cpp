@@ -1209,8 +1209,19 @@ GnssAdapter::gnssUpdateConfigCommand(const GnssConfig& config)
             mAdapter(adapter),
             mApi(api),
             mConfig(config),
-            mCount(count),
-            mIds(ids) {}
+            mCount(count) {
+                if (mCount > 0) {
+                    mIds = new uint32_t[count];
+                    if (mIds) {
+                        for (uint32_t index = 0; index < count; index++) {
+                            mIds[index] = ids[index];
+                        }
+                    } else {
+                        LOC_LOGe("memory allocation for mIds failed");
+                    }
+                }
+           }
+
         inline virtual ~MsgGnssUpdateConfig()
         {
             delete [] mIds;
@@ -1481,8 +1492,19 @@ GnssAdapter::gnssGetConfigCommand(GnssConfigFlagsMask configMask) {
             mAdapter(adapter),
             mApi(api),
             mConfigMask(configMask),
-            mIds(ids),
-            mCount(count) {}
+            mCount(count) {
+                if (mCount > 0) {
+                    mIds = new uint32_t[count];
+                    if (mIds) {
+                        for (uint32_t index = 0; index < count; index++) {
+                            mIds[index] = ids[index];
+                        }
+                    } else {
+                        LOC_LOGe("memory allocation for mIds failed");
+                    }
+                }
+            }
+
         inline virtual ~MsgGnssGetConfig()
         {
             delete[] mIds;
