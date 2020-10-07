@@ -202,6 +202,7 @@ typedef enum {
     GNSS_LOCATION_INFO_LLA_VRP_BASED_BIT                = (1<<29), // VRP-based lat/long/alt
     GNSS_LOCATION_INFO_ENU_VELOCITY_VRP_BASED_BIT       = (1<<30), // VRP-based east/north/up vel
     GNSS_LOCATION_INFO_DR_SOLUTION_STATUS_MASK_BIT      = (1ULL<<31), // Valid DR solution status
+    GNSS_LOCATION_INFO_ALTITUDE_ASSUMED_BIT             = (1ULL<<32), // Valid altitude assumed
 } GnssLocationInfoFlagBits;
 
 typedef enum {
@@ -1086,6 +1087,8 @@ typedef struct {
     // VRR-based east, north, and up velocity
     float enuVelocityVRPBased[3];
     DrSolutionStatusMask drSolutionStatusMask;
+    // true: altitude is assumed, false: altitude is calculated
+    bool altitudeAssumed;
 } GnssLocationInfoNotification;
 
 typedef struct {
