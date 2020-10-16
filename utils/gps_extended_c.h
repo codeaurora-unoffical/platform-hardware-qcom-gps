@@ -115,6 +115,9 @@ typedef uint32_t LocPosTechMask;
 #define LOC_POS_TECH_MASK_AFLT ((LocPosTechMask)0x00000040)
 #define LOC_POS_TECH_MASK_HYBRID ((LocPosTechMask)0x00000080)
 #define LOC_POS_TECH_MASK_PPE ((LocPosTechMask)0x00000100)
+#define LOC_POS_TECH_MASK_VEH ((LocPosTechMask)0x00000200)
+#define LOC_POS_TECH_MASK_VIS ((LocPosTechMask)0x00000400)
+
 
 enum loc_registration_mask_status {
     LOC_REGISTRATION_MASK_ENABLED,
@@ -134,8 +137,9 @@ typedef enum {
     LOC_SUPPORTED_FEATURE_FDCL_2, /**< Support FDCL V2 */
     LOC_SUPPORTED_FEATURE_LOCATION_PRIVACY, /**<  Support the location privacy feature */
     LOC_SUPPORTED_FEATURE_NAVIC, /**<  Support the NavIC constellation */
-    LOC_SUPPORTED_FEATURE_ENV_AIDING, /**<  Support Environment Aiding */
+    LOC_SUPPORTED_FEATURE_MEASUREMENTS_CORRECTION, /**<  Support measurements correction */
     LOC_SUPPORTED_FEATURE_ROBUST_LOCATION, /**<  Support Robust Location feature */
+    LOC_SUPPORTED_FEATURE_EDGNSS /**< Support precise location dgnss */
 } loc_supported_feature_enum;
 
 typedef struct {
@@ -474,17 +478,6 @@ typedef uint32_t GnssAdditionalSystemInfoMask;
 #define GAL_SV_PRN_MAX      336
 #define NAVIC_SV_PRN_MIN    401
 #define NAVIC_SV_PRN_MAX    414
-
-typedef uint32_t LocPosTechMask;
-#define LOC_POS_TECH_MASK_DEFAULT ((LocPosTechMask)0x00000000)
-#define LOC_POS_TECH_MASK_SATELLITE ((LocPosTechMask)0x00000001)
-#define LOC_POS_TECH_MASK_CELLID ((LocPosTechMask)0x00000002)
-#define LOC_POS_TECH_MASK_WIFI ((LocPosTechMask)0x00000004)
-#define LOC_POS_TECH_MASK_SENSORS ((LocPosTechMask)0x00000008)
-#define LOC_POS_TECH_MASK_REFERENCE_LOCATION ((LocPosTechMask)0x00000010)
-#define LOC_POS_TECH_MASK_INJECTED_COARSE_POSITION ((LocPosTechMask)0x00000020)
-#define LOC_POS_TECH_MASK_AFLT ((LocPosTechMask)0x00000040)
-#define LOC_POS_TECH_MASK_HYBRID ((LocPosTechMask)0x00000080)
 
 /* Checking svIdOneBase can be set to the corresponding bit in mask */
 #define svFitsMask(mask, svIdOneBase)                 \
