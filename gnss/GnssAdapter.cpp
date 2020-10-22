@@ -633,7 +633,7 @@ GnssAdapter::convertLocationInfo(GnssLocationInfoNotification& out,
         out.enuVelocityVRPBased[2] = locationExtended.enuVelocityVRPBased[2];
     }
 
-    if (GPS_LOCATION_EXTENDED_HAS_DR_SOLUTION_STATIUS_MASK & locationExtended.flags) {
+    if (GPS_LOCATION_EXTENDED_HAS_DR_SOLUTION_STATUS_MASK & locationExtended.flags) {
         out.flags |= GNSS_LOCATION_INFO_DR_SOLUTION_STATUS_MASK_BIT;
         out.drSolutionStatusMask = locationExtended.drSolutionStatusMask;
     }
