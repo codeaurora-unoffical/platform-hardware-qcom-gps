@@ -141,7 +141,8 @@ typedef struct loc_sv_cache_info_s
     uint32_t qzss_l1_count;
     uint32_t qzss_l2_count;
     uint32_t qzss_l5_count;
-    uint32_t bds_b1_count;
+    uint32_t bds_b1i_count;
+    uint32_t bds_b1c_count;
     uint32_t bds_b2_count;
     uint32_t navic_l5_count;
     float hdop;
@@ -333,6 +334,7 @@ static uint32_t convert_signalType_to_signalId(GnssSignalTypeMask signalType)
             signalId = SIGNAL_ID_BDS_B2I;
             break;
         case GNSS_SIGNAL_BEIDOU_B2AI:
+        case GNSS_SIGNAL_BEIDOU_B2AQ:
             signalId = SIGNAL_ID_BDS_B2A;
             break;
         case GNSS_SIGNAL_NAVIC_L5:
@@ -486,7 +488,10 @@ static loc_nmea_sv_meta* loc_nmea_sv_meta_init(loc_nmea_sv_meta& sv_meta,
             sv_meta.systemId = SYSTEM_ID_BDS;
             switch (signalType) {
                 case GNSS_SIGNAL_BEIDOU_B1I:
-                    sv_meta.svCount = sv_cache_info.bds_b1_count;
+                    sv_meta.svCount = sv_cache_info.bds_b1i_count;
+                    break;
+                case GNSS_SIGNAL_BEIDOU_B1C:
+                    sv_meta.svCount = sv_cache_info.bds_b1c_count;
                     break;
                 case GNSS_SIGNAL_BEIDOU_B2AI:
                     sv_meta.svCount = sv_cache_info.bds_b2_count;
@@ -2171,12 +2176,15 @@ void loc_nmea_generate_sv(const GnssSvNotification &svNotify,
             {
                 setSvMask(sv_cache_info.bds_used_mask, svNotify.gnssSvs[svOffset].svId);
             }
-            if (GNSS_SIGNAL_BEIDOU_B2AI == svNotify.gnssSvs[svOffset].gnssSignalTypeMask) {
+            if ((GNSS_SIGNAL_BEIDOU_B2AI == svNotify.gnssSvs[svOffset].gnssSignalTypeMask) ||
+                   (GNSS_SIGNAL_BEIDOU_B2AQ == svNotify.gnssSvs[svOffset].gnssSignalTypeMask)) {
                 sv_cache_info.bds_b2_count++;
+            } else if (GNSS_SIGNAL_BEIDOU_B1C == svNotify.gnssSvs[svOffset].gnssSignalTypeMask) {
+                sv_cache_info.bds_b1c_count++;
             } else {
                 // GNSS_SIGNAL_BEIDOU_B1I or default
                 // If no signal type in report, it means default B1I
-                sv_cache_info.bds_b1_count++;
+                sv_cache_info.bds_b1i_count++;
             }
         }
         else if (GNSS_SV_TYPE_NAVIC == svNotify.gnssSvs[svOffset].type)
@@ -2287,6 +2295,14 @@ void loc_nmea_generate_sv(const GnssSvNotification &svNotify,
     loc_nmea_generate_GSV(svNotify, sentence, sizeof(sentence),
             loc_nmea_sv_meta_init(sv_meta, sv_cache_info, GNSS_SV_TYPE_BEIDOU,
             GNSS_SIGNAL_BEIDOU_B1I, false), nmeaArraystr);
+
+    // -----------------------------
+    // ------$GBGSV (BEIDOU:B1C)----
+    // -----------------------------
+
+    loc_nmea_generate_GSV(svNotify, sentence, sizeof(sentence),
+            loc_nmea_sv_meta_init(sv_meta, sv_cache_info, GNSS_SV_TYPE_BEIDOU,
+            GNSS_SIGNAL_BEIDOU_B1C, false), nmeaArraystr);
 
     // -----------------------------
     // ------$GBGSV (BEIDOU:B2AI)---
