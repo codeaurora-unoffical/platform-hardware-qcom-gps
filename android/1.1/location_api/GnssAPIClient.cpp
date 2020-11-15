@@ -134,6 +134,13 @@ void GnssAPIClient::gnssUpdateCallbacks(const sp<IGnssCallback>& gpsCb,
         };
     }
 
+    locationCallbacks.gnssRequestTimeCb = nullptr;
+    if (mGnssCbIface != nullptr) {
+        locationCallbacks.gnssRequestTimeCb = [this]() {
+            onGnssRequestTimeCb();
+        };
+    }
+
     locationCallbacks.gnssMeasurementsCb = nullptr;
 
     locAPISetCallbacks(locationCallbacks);
@@ -484,6 +491,22 @@ void GnssAPIClient::onGnssNmeaCb(GnssNmeaNotification gnssNmeaNotification)
                             gnssNmeaNotification.nmea, gnssNmeaNotification.length,
                             r.description().c_str());
             }
+        }
+    }
+}
+
+void GnssAPIClient::onGnssRequestTimeCb()
+{
+    LOC_LOGD("%s] ", __FUNCTION__);
+    mMutex.lock();
+    auto gnssCbIface(mGnssCbIface);
+    mMutex.unlock();
+
+    if (gnssCbIface != nullptr) {
+        auto r = gnssCbIface->gnssRequestTimeCb();
+        if (!r.isOk()) {
+            LOC_LOGE("%s] Error from gnssRequestTimeCb description=%s",
+                __func__, r.description().c_str());
         }
     }
 }

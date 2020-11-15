@@ -78,6 +78,7 @@ BatchingAPIClient::BatchingAPIClient(const sp<IGnssBatchingCallback>& callback) 
     locationCallbacks.gnssNiCb = nullptr;
     locationCallbacks.gnssSvCb = nullptr;
     locationCallbacks.gnssNmeaCb = nullptr;
+    locationCallbacks.gnssRequestTimeCb = nullptr;
     locationCallbacks.gnssMeasurementsCb = nullptr;
 
     locAPISetCallbacks(locationCallbacks);

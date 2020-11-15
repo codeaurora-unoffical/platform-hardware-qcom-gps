@@ -429,6 +429,7 @@ public:
     virtual bool reportGnssAdditionalSystemInfoEvent(
             GnssAdditionalSystemInfo& additionalSystemInfo);
     virtual void reportNfwNotificationEvent(GnssNfwNotification& notification);
+    virtual bool requestTime();
 
     /* ======== UTILITIES ================================================================= */
     bool needReportForGnssClient(const UlpLocation& ulpLocation,
@@ -466,7 +467,7 @@ public:
 
     void updateSystemPowerState(PowerStateType systemPowerState);
     void reportSvPolynomial(const GnssSvPolynomial &svPolynomial);
-
+    void requestTimeInternal();
 
 
     /*======== GNSSDEBUG ================================================================*/
