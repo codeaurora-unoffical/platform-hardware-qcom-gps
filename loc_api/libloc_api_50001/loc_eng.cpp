@@ -2020,6 +2020,11 @@ int loc_eng_start(loc_eng_data_s_type &loc_eng_data)
 {
    ENTRY_LOG_CALLFLOW();
    INIT_CHECK(loc_eng_data.adapter, return -1);
+   /*For Ford Connection manager requirement ,Xtra Client needs to be aware of
+     a loc start issued by the application.Call the start event to
+     xtraIzatAdapter.
+    */
+   loc_eng_data.adapter->getContext()->getLocApi()->handleLocSessionEvent(true);
 
    if(! loc_eng_data.adapter->getUlpProxy()->sendStartFix())
    {
@@ -2071,6 +2076,11 @@ int loc_eng_stop(loc_eng_data_s_type &loc_eng_data)
 {
     ENTRY_LOG_CALLFLOW();
     INIT_CHECK(loc_eng_data.adapter, return -1);
+    /*For Ford connection manager requirement,Xtra client needs to be aware
+      of loc stop issued by application. Call the stop event to
+      XtraIzatAdapter.
+     */
+    loc_eng_data.adapter->getContext()->getLocApi()->handleLocSessionEvent(false);
 
     if(! loc_eng_data.adapter->getUlpProxy()->sendStopFix())
     {

@@ -106,6 +106,9 @@ public:
     void addAdapter(LocAdapterBase* adapter);
     void removeAdapter(LocAdapterBase* adapter);
 
+    //Inform Xtra about Loc Start/Stop
+    void handleLocSessionEvent(bool start);
+
     // upward calls
     void handleEngineUpEvent();
     void handleEngineDownEvent();

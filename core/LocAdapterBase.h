@@ -125,6 +125,7 @@ public:
     ContextBase* getContext() const { return mContext; }
     virtual void reportGnssMeasurementData(LocGnssData &gnssMeasurementData);
     virtual bool reportWwanZppFix(LocGpsLocation &zppLoc);
+    virtual void handleLocSessionEvent(bool start);
 };
 
 } // namespace loc_core

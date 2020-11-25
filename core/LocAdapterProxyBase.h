@@ -68,6 +68,7 @@ public:
         (void)loc_technology_mask;
         return false;
     }
+    inline virtual void handleLocSessionEvent(bool start) {};
 };
 
 } // namespace loc_core

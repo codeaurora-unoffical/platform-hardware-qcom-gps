@@ -207,6 +207,12 @@ void LocApiBase::updateEvtMask()
     mMsgTask->sendMsg(new LocOpenMsg(this));
 }
 
+void LocApiBase::handleLocSessionEvent(bool start)
+{
+    // loop through adapters, and deliver to all adapters
+    TO_ALL_LOCADAPTERS(mLocAdapters[i]->handleLocSessionEvent(start));
+}
+
 void LocApiBase::handleEngineUpEvent()
 {
     // This will take care of renegotiating the loc handle

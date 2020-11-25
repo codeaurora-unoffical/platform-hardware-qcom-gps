@@ -151,4 +151,11 @@ bool LocAdapterBase::
     reportWwanZppFix(LocGpsLocation &zppLoc)
 DEFAULT_IMPL(false)
 
+void LocAdapterBase::handleLocSessionEvent(bool start)
+{
+    if (mLocAdapterProxyBase) {
+        mLocAdapterProxyBase->handleLocSessionEvent(start);
+    }
+}
+
 } // namespace loc_core
