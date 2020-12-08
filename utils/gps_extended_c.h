@@ -115,6 +115,9 @@ typedef uint32_t LocPosTechMask;
 #define LOC_POS_TECH_MASK_AFLT ((LocPosTechMask)0x00000040)
 #define LOC_POS_TECH_MASK_HYBRID ((LocPosTechMask)0x00000080)
 #define LOC_POS_TECH_MASK_PPE ((LocPosTechMask)0x00000100)
+#define LOC_POS_TECH_MASK_VEH ((LocPosTechMask)0x00000200)
+#define LOC_POS_TECH_MASK_VIS ((LocPosTechMask)0x00000400)
+
 
 enum loc_registration_mask_status {
     LOC_REGISTRATION_MASK_ENABLED,
@@ -134,8 +137,9 @@ typedef enum {
     LOC_SUPPORTED_FEATURE_FDCL_2, /**< Support FDCL V2 */
     LOC_SUPPORTED_FEATURE_LOCATION_PRIVACY, /**<  Support the location privacy feature */
     LOC_SUPPORTED_FEATURE_NAVIC, /**<  Support the NavIC constellation */
-    LOC_SUPPORTED_FEATURE_ENV_AIDING, /**<  Support Environment Aiding */
+    LOC_SUPPORTED_FEATURE_MEASUREMENTS_CORRECTION, /**<  Support measurements correction */
     LOC_SUPPORTED_FEATURE_ROBUST_LOCATION, /**<  Support Robust Location feature */
+    LOC_SUPPORTED_FEATURE_EDGNSS /**< Support precise location dgnss */
 } loc_supported_feature_enum;
 
 typedef struct {
@@ -407,8 +411,12 @@ typedef uint64_t GpsLocationExtendedFlags;
 #define GPS_LOCATION_EXTENDED_HAS_LLA_VRP_BASED                0x200000000000
 /** GpsLocationExtended has the velocityVRPased. */
 #define GPS_LOCATION_EXTENDED_HAS_ENU_VELOCITY_LLA_VRP_BASED   0x400000000000
+/** GpsLocationExtended has upperTriangleFullCovMatrix. */
 #define GPS_LOCATION_EXTENDED_HAS_UPPER_TRIANGLE_FULL_COV_MATRIX 0x800000000000
+/** GpsLocationExtended has drSolutionStatusMask. */
 #define GPS_LOCATION_EXTENDED_HAS_DR_SOLUTION_STATUS_MASK        0x1000000000000
+/** GpsLocationExtended has altitudeAssumed. */
+#define GPS_LOCATION_EXTENDED_HAS_ALTITUDE_ASSUMED               0x2000000000000
 
 typedef uint32_t LocNavSolutionMask;
 /* Bitmask to specify whether SBAS ionospheric correction is used  */
@@ -474,17 +482,6 @@ typedef uint32_t GnssAdditionalSystemInfoMask;
 #define GAL_SV_PRN_MAX      336
 #define NAVIC_SV_PRN_MIN    401
 #define NAVIC_SV_PRN_MAX    414
-
-typedef uint32_t LocPosTechMask;
-#define LOC_POS_TECH_MASK_DEFAULT ((LocPosTechMask)0x00000000)
-#define LOC_POS_TECH_MASK_SATELLITE ((LocPosTechMask)0x00000001)
-#define LOC_POS_TECH_MASK_CELLID ((LocPosTechMask)0x00000002)
-#define LOC_POS_TECH_MASK_WIFI ((LocPosTechMask)0x00000004)
-#define LOC_POS_TECH_MASK_SENSORS ((LocPosTechMask)0x00000008)
-#define LOC_POS_TECH_MASK_REFERENCE_LOCATION ((LocPosTechMask)0x00000010)
-#define LOC_POS_TECH_MASK_INJECTED_COARSE_POSITION ((LocPosTechMask)0x00000020)
-#define LOC_POS_TECH_MASK_AFLT ((LocPosTechMask)0x00000040)
-#define LOC_POS_TECH_MASK_HYBRID ((LocPosTechMask)0x00000080)
 
 /* Checking svIdOneBase can be set to the corresponding bit in mask */
 #define svFitsMask(mask, svIdOneBase)                 \
@@ -863,13 +860,13 @@ typedef struct {
     */
     float upperTriangleFullCovMatrix[COV_MATRIX_SIZE];
     DrSolutionStatusMask drSolutionStatusMask;
+    /** When this field is valid, it will indicates whether altitude
+     *  is assumed or calculated.
+     *  false: Altitude is calculated.
+     *  true:  Altitude is assumed; there may not be enough
+     *         satellites to determine the precise altitude. */
+    bool altitudeAssumed;
 } GpsLocationExtended;
-
-enum loc_sess_status {
-    LOC_SESS_SUCCESS,
-    LOC_SESS_INTERMEDIATE,
-    LOC_SESS_FAILURE
-};
 
 // struct that contains complete position info from engine
 typedef struct {
@@ -986,6 +983,7 @@ enum loc_api_adapter_event_index {
     LOC_API_ADAPTER_LOC_SYSTEM_INFO,                   // Location system info event
     LOC_API_ADAPTER_GNSS_NHZ_MEASUREMENT_REPORT,       // GNSS SV nHz measurement report
     LOC_API_ADAPTER_EVENT_REPORT_INFO,                 // Event report info
+    LOC_API_ADAPTER_LATENCY_INFORMATION_REPORT,       // Latency information report
     LOC_API_ADAPTER_EVENT_MAX
 };
 
@@ -1028,6 +1026,7 @@ enum loc_api_adapter_event_index {
 #define LOC_API_ADAPTER_BIT_LOC_SYSTEM_INFO                  (1ULL<<LOC_API_ADAPTER_LOC_SYSTEM_INFO)
 #define LOC_API_ADAPTER_BIT_GNSS_NHZ_MEASUREMENT             (1ULL<<LOC_API_ADAPTER_GNSS_NHZ_MEASUREMENT_REPORT)
 #define LOC_API_ADAPTER_BIT_EVENT_REPORT_INFO                (1ULL<<LOC_API_ADAPTER_EVENT_REPORT_INFO)
+#define LOC_API_ADAPTER_BIT_LATENCY_INFORMATION              (1ULL<<LOC_API_ADAPTER_LATENCY_INFORMATION_REPORT)
 
 typedef uint64_t LOC_API_ADAPTER_EVENT_MASK_T;
 
