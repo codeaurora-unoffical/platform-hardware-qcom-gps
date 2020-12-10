@@ -1507,8 +1507,17 @@ bool SystemStatus::eventDataItemNotify(IDataItemCore* dataitem)
                     SystemStatusWifiHardwareState(*(static_cast<WifiHardwareStateDataItemBase*>(dataitem))));
             break;
         case NETWORKINFO_DATA_ITEM_ID:
-            ret = setIteminReport(mCache.mNetworkInfo,
-                    SystemStatusNetworkInfo(*(static_cast<NetworkInfoDataItemBase*>(dataitem))));
+            /*If the mNetworkInfo is empty. For the first n/w updated check if data network
+              status is connected. If not connected return status as false.
+              As we don't want to notify this to clients which they already know form bootup*/
+            if (mCache.mNetworkInfo.empty() &&
+                    !((static_cast<NetworkInfoDataItemBase*>(dataitem))->mConnected)) {
+                LOC_LOGD("Ignoring the n/w notification!");
+                ret = false;
+            } else {
+                ret = setIteminReport(mCache.mNetworkInfo, SystemStatusNetworkInfo(
+                        *(static_cast<NetworkInfoDataItemBase*>(dataitem))));
+            }
             break;
         case RILSERVICEINFO_DATA_ITEM_ID:
             ret = setIteminReport(mCache.mRilServiceInfo,
