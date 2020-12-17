@@ -527,7 +527,7 @@ public:
                     LOC_LOGD("collate duplicate detected, not updating");
                     break;
                 }
-                if (NETWORK_HANDLE_UNKNOWN == mAllNetworkHandles[i].networkHandle) {
+                if ((uint64_t)NETWORK_HANDLE_UNKNOWN == mAllNetworkHandles[i].networkHandle) {
                     mAllNetworkHandles[i].networkHandle = mNetworkHandle;
                     mAllNetworkHandles[i].networkType = (loc_core::NetworkType) mType;
                     break;
@@ -538,7 +538,7 @@ public:
             uint8_t lastValidIndex = 0;
             uint8_t typeCount = 0;
             for (; lastValidIndex < MAX_NETWORK_HANDLES &&
-                     NETWORK_HANDLE_UNKNOWN != mAllNetworkHandles[lastValidIndex].networkHandle;
+                     (uint64_t)NETWORK_HANDLE_UNKNOWN != mAllNetworkHandles[lastValidIndex].networkHandle;
                  ++lastValidIndex) {
                 // Maintain count for number of network handles still
                 // connected for given type

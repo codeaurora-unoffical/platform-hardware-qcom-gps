@@ -57,29 +57,61 @@ Return<bool> AGnssRil::updateNetworkState(bool connected, NetworkType type, bool
 
     // for XTRA
     if (nullptr != mGnss && ( nullptr != mGnss->getGnssInterface() )) {
-        int8_t typeout = loc_core::NetworkInfoDataItemBase::TYPE_UNKNOWN;
+        #ifdef ANDROID_P_AOSP
+                int8_t typeout = loc_core::TYPE_UNKNOWN;
+        #else //ANDROID_Q_AOSP or above
+                int8_t typeout = loc_core::NetworkInfoDataItemBase::TYPE_UNKNOWN;
+        #endif
         switch(type)
         {
             case IAGnssRil::NetworkType::MOBILE:
-                typeout = loc_core::NetworkInfoDataItemBase::TYPE_MOBILE;
+                #ifdef ANDROID_P_AOSP
+                    typeout = loc_core::TYPE_MOBILE;
+                #else //ANDROID_Q_AOSP or above
+                    typeout = loc_core::NetworkInfoDataItemBase::TYPE_MOBILE;
+                #endif
                 break;
             case IAGnssRil::NetworkType::WIFI:
-                typeout = loc_core::NetworkInfoDataItemBase::TYPE_WIFI;
+                #ifdef ANDROID_P_AOSP
+                    typeout = loc_core::TYPE_WIFI;
+                #else //ANDROID_Q_AOSP or above
+                    typeout = loc_core::NetworkInfoDataItemBase::TYPE_WIFI;
+                #endif
                 break;
             case IAGnssRil::NetworkType::MMS:
-                typeout = loc_core::NetworkInfoDataItemBase::TYPE_MMS;
+                #ifdef ANDROID_P_AOSP
+                    typeout = loc_core::TYPE_MMS;
+                #else //ANDROID_Q_AOSP or above
+                    typeout = loc_core::NetworkInfoDataItemBase::TYPE_MMS;
+                #endif
                 break;
             case IAGnssRil::NetworkType::SUPL:
-                typeout = loc_core::NetworkInfoDataItemBase::TYPE_SUPL;
+                #ifdef ANDROID_P_AOSP
+                    typeout = loc_core::TYPE_SUPL;
+                #else //ANDROID_Q_AOSP or above
+                    typeout = loc_core::NetworkInfoDataItemBase::TYPE_SUPL;
+                #endif
                 break;
             case IAGnssRil::NetworkType::DUN:
-                typeout = loc_core::NetworkInfoDataItemBase::TYPE_DUN;
+                #ifdef ANDROID_P_AOSP
+                    typeout = loc_core::TYPE_DUN;
+                #else //ANDROID_Q_AOSP or above
+                    typeout = loc_core::NetworkInfoDataItemBase::TYPE_DUN;
+                #endif
                 break;
             case IAGnssRil::NetworkType::HIPRI:
-                typeout = loc_core::NetworkInfoDataItemBase::TYPE_HIPRI;
+                #ifdef ANDROID_P_AOSP
+                    typeout = loc_core::TYPE_HIPRI;
+                #else //ANDROID_Q_AOSP or above
+                    typeout = loc_core::NetworkInfoDataItemBase::TYPE_HIPRI;
+                #endif
                 break;
             case IAGnssRil::NetworkType::WIMAX:
-                typeout = loc_core::NetworkInfoDataItemBase::TYPE_WIMAX;
+                #ifdef ANDROID_P_AOSP
+                    typeout = loc_core::TYPE_WIMAX;
+                #else //ANDROID_Q_AOSP or above
+                    typeout = loc_core::NetworkInfoDataItemBase::TYPE_WIMAX;
+                #endif
                 break;
             default:
                 {
@@ -88,16 +120,32 @@ Return<bool> AGnssRil::updateNetworkState(bool connected, NetworkType type, bool
                     switch(networkType)
                     {
                         case NetworkType_BLUETOOTH:
-                            typeout = loc_core::NetworkInfoDataItemBase::TYPE_BLUETOOTH;
+                            #ifdef ANDROID_P_AOSP
+                                typeout = loc_core::TYPE_BLUETOOTH;
+                            #else //ANDROID_Q_AOSP or above
+                                typeout = loc_core::NetworkInfoDataItemBase::TYPE_BLUETOOTH;
+                            #endif
                             break;
                         case NetworkType_ETHERNET:
-                            typeout = loc_core::NetworkInfoDataItemBase::TYPE_ETHERNET;
+                            #ifdef ANDROID_P_AOSP
+                                typeout = loc_core::TYPE_ETHERNET;
+                            #else //ANDROID_Q_AOSP or above
+                                typeout = loc_core::NetworkInfoDataItemBase::TYPE_ETHERNET;
+                            #endif
                             break;
                         case NetworkType_PROXY:
-                            typeout = loc_core::NetworkInfoDataItemBase::TYPE_PROXY;
+                            #ifdef ANDROID_P_AOSP
+                                typeout = loc_core::TYPE_PROXY;
+                            #else //ANDROID_Q_AOSP or above
+                                typeout = loc_core::NetworkInfoDataItemBase::TYPE_PROXY;
+                            #endif
                             break;
                         default:
-                            typeout = loc_core::NetworkInfoDataItemBase::TYPE_UNKNOWN;
+                            #ifdef ANDROID_P_AOSP
+                                typeout = loc_core::TYPE_UNKNOWN;
+                            #else //ANDROID_Q_AOSP or above
+                                typeout = loc_core::NetworkInfoDataItemBase::TYPE_UNKNOWN;
+                            #endif
                     }
                 }
                 break;

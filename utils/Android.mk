@@ -6,6 +6,9 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
+ifeq (,$(findstring ANDROID_P_AOSP,$(GNSS_CFLAGS)))
+    LIBPROCESS_GROUP := libprocessgroup
+endif
 
 ## Libs
 LOCAL_SHARED_LIBRARIES := \
@@ -13,7 +16,7 @@ LOCAL_SHARED_LIBRARIES := \
     libutils \
     libcutils \
     liblog \
-    libprocessgroup
+    $(LIBPROCESS_GROUP)
 
 LOCAL_SRC_FILES += \
     loc_log.cpp \

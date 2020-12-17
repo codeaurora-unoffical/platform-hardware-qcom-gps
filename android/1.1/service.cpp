@@ -25,9 +25,11 @@
 #include "loc_cfg.h"
 #include "loc_misc_utils.h"
 
-extern "C" {
-#include "vndfwk-detect.h"
-}
+#ifndef ANDROID_P_AOSP
+    extern "C" {
+    #include "vndfwk-detect.h"
+    }
+#endif
 
 #ifdef ARCH_ARM_32
 #define DEFAULT_HW_BINDER_MEM_SIZE 65536
@@ -48,9 +50,13 @@ int main() {
 
     ALOGI("%s", __FUNCTION__);
 
+#ifdef ANDROID_P_AOSP
+   bool vendorEnhanced = true;
+#else
     int vendorInfo = getVendorEnhancedInfo();
     bool vendorEnhanced = ( 1 == vendorInfo || 3 == vendorInfo );
     setVendorEnhanced(vendorEnhanced);
+#endif
 
 #ifdef ARCH_ARM_32
     android::hardware::ProcessState::initWithMmapSize((size_t)(DEFAULT_HW_BINDER_MEM_SIZE));
