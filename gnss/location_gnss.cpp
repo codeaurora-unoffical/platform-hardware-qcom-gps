@@ -72,7 +72,7 @@ static uint32_t setConstrainedTunc (bool enable, float tuncConstraint,
                                     uint32_t energyBudget);
 static uint32_t setPositionAssistedClockEstimator(bool enable);
 
-static void odcpiInit(const OdcpiRequestCallback& callback);
+static void odcpiInit(const OdcpiRequestCallback& callback, OdcpiPrioritytype priority);
 static void odcpiInject(const Location& location);
 
 static void blockCPI(double latitude, double longitude, float accuracy,
@@ -87,6 +87,7 @@ static uint32_t configMinGpsWeek(uint16_t minGpsWeek);
 static uint32_t configDeadReckoningEngineParams(const DeadReckoningEngineConfig& dreConfig);
 static uint32_t gnssUpdateSecondaryBandConfig(const GnssSvTypeConfig& secondaryBandConfig);
 static uint32_t gnssGetSecondaryBandConfig();
+static uint32_t configEngineRunState(PositioningEngineMask engType, LocEngineRunState engState);
 
 static const GnssInterface gGnssInterface = {
     sizeof(GnssInterface),
@@ -133,6 +134,7 @@ static const GnssInterface gGnssInterface = {
     configDeadReckoningEngineParams,
     gnssUpdateSecondaryBandConfig,
     gnssGetSecondaryBandConfig,
+    configEngineRunState,
 };
 
 #ifndef DEBUG_X86
@@ -345,10 +347,10 @@ static void updateConnectionStatus(bool connected, int8_t type) {
     }
 }
 
-static void odcpiInit(const OdcpiRequestCallback& callback)
+static void odcpiInit(const OdcpiRequestCallback& callback, OdcpiPrioritytype priority)
 {
     if (NULL != gGnssAdapter) {
-        gGnssAdapter->initOdcpiCommand(callback);
+        gGnssAdapter->initOdcpiCommand(callback, priority);
     }
 }
 
@@ -463,6 +465,14 @@ static uint32_t gnssUpdateSecondaryBandConfig(
 static uint32_t gnssGetSecondaryBandConfig(){
     if (NULL != gGnssAdapter) {
         return gGnssAdapter->gnssGetSecondaryBandConfigCommand();
+    } else {
+        return 0;
+    }
+}
+
+static uint32_t configEngineRunState(PositioningEngineMask engType, LocEngineRunState engState) {
+    if (NULL != gGnssAdapter) {
+        return gGnssAdapter->configEngineRunStateCommand(engType, engState);
     } else {
         return 0;
     }

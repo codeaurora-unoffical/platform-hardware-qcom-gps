@@ -1450,7 +1450,7 @@ void loc_nmea_generate_pos(const UlpLocation &location,
             float magTrack = location.gpsLocation.bearing;
             if (locationExtended.flags & GPS_LOCATION_EXTENDED_HAS_MAG_DEV)
             {
-                float magTrack = location.gpsLocation.bearing - locationExtended.magneticDeviation;
+                magTrack = location.gpsLocation.bearing - locationExtended.magneticDeviation;
                 if (magTrack < 0.0)
                     magTrack += 360.0;
                 else if (magTrack > 360.0)
@@ -1544,8 +1544,19 @@ void loc_nmea_generate_pos(const UlpLocation &location,
         pMarker = sentence_RMC;
         lengthRemaining = sizeof(sentence_RMC);
 
-        length = snprintf(pMarker, lengthRemaining, "$%sRMC,%02d%02d%02d.%02d,A," ,
-                          talker, utcHours, utcMinutes, utcSeconds,utcMSeconds/10);
+        bool validFix = ((0 != sv_cache_info.gps_used_mask) ||
+                (0 != sv_cache_info.glo_used_mask) ||
+                (0 != sv_cache_info.gal_used_mask) ||
+                (0 != sv_cache_info.qzss_used_mask) ||
+                (0 != sv_cache_info.bds_used_mask));
+
+        if (validFix) {
+            length = snprintf(pMarker, lengthRemaining, "$%sRMC,%02d%02d%02d.%02d,A,",
+                              talker, utcHours, utcMinutes, utcSeconds, utcMSeconds/10);
+        } else {
+            length = snprintf(pMarker, lengthRemaining, "$%sRMC,%02d%02d%02d.%02d,V,",
+                              talker, utcHours, utcMinutes, utcSeconds, utcMSeconds/10);
+        }
 
         if (length < 0 || length >= lengthRemaining)
         {
@@ -1686,8 +1697,6 @@ void loc_nmea_generate_pos(const UlpLocation &location,
 
         // hardcode Navigation Status field to 'V'
         length = snprintf(pMarker, lengthRemaining, ",%c", 'V');
-        pMarker += length;
-        lengthRemaining -= length;
 
         length = loc_nmea_put_checksum(sentence_RMC, sizeof(sentence_RMC));
 

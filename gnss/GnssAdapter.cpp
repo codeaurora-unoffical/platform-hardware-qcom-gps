@@ -113,15 +113,16 @@ GnssAdapter::GnssAdapter() :
     mOdcpiRequestActive(false),
     mOdcpiTimer(this),
     mOdcpiRequest(),
+    mCallbackPriority(OdcpiPrioritytype::ODCPI_HANDLER_PRIORITY_LOW),
     mSystemStatus(SystemStatus::getInstance(mMsgTask)),
     mServerUrl(":"),
     mXtraObserver(mSystemStatus->getOsObserver(), mMsgTask),
     mBlockCPIInfo{},
+    mDreIntEnabled(false),
     mLocSystemInfo{},
     mGnssMbSvIdUsedInPosition{},
     mGnssMbSvIdUsedInPosAvail(false),
-    mPowerState(POWER_STATE_UNKNOWN),
-    mGnssLatencyInfo{}
+    mPowerState(POWER_STATE_UNKNOWN)
 {
     LOC_LOGD("%s]: Constructor %p", __func__, this);
     mLocPositionMode.mode = LOC_POSITION_MODE_INVALID;
@@ -329,7 +330,8 @@ uint16_t GnssAdapter::getNumSvUsed(uint64_t svUsedIdsMask,
 
 void
 GnssAdapter::convertLocationInfo(GnssLocationInfoNotification& out,
-                                 const GpsLocationExtended& locationExtended)
+                                 const GpsLocationExtended& locationExtended,
+                                 enum loc_sess_status status)
 {
     out.size = sizeof(GnssLocationInfoNotification);
     if (GPS_LOCATION_EXTENDED_HAS_ALTITUDE_MEAN_SEA_LEVEL & locationExtended.flags) {
@@ -640,6 +642,9 @@ GnssAdapter::convertLocationInfo(GnssLocationInfoNotification& out,
         out.flags |= GNSS_LOCATION_INFO_ALTITUDE_ASSUMED_BIT;
         out.altitudeAssumed = locationExtended.altitudeAssumed;
     }
+
+    out.flags |= GNSS_LOCATION_INFO_SESSION_STATUS_BIT;
+    out.sessionStatus = status;
 }
 
 inline uint32_t
@@ -2403,7 +2408,8 @@ GnssAdapter::updateClientsEventMask()
 {
     // need to register for leap second info
     // for proper nmea generation
-    LOC_API_ADAPTER_EVENT_MASK_T mask = LOC_API_ADAPTER_BIT_LOC_SYSTEM_INFO;
+    LOC_API_ADAPTER_EVENT_MASK_T mask = LOC_API_ADAPTER_BIT_LOC_SYSTEM_INFO |
+            LOC_API_ADAPTER_BIT_EVENT_REPORT_INFO;
     for (auto it=mClientData.begin(); it != mClientData.end(); ++it) {
         if (it->second.trackingCb != nullptr ||
             it->second.gnssLocationInfoCb != nullptr ||
@@ -2441,7 +2447,6 @@ GnssAdapter::updateClientsEventMask()
         mask |= LOC_API_ADAPTER_BIT_GNSS_SV_POLYNOMIAL_REPORT;
         mask |= LOC_API_ADAPTER_BIT_PARSED_UNPROPAGATED_POSITION_REPORT;
         mask |= LOC_API_ADAPTER_BIT_GNSS_SV_EPHEMERIS_REPORT;
-        mask |= LOC_API_ADAPTER_BIT_EVENT_REPORT_INFO;
 
         // Nhz measurement bit is set based on callback from loc eng hub
         // for Nhz engines.
@@ -2639,18 +2644,8 @@ GnssAdapter::getCapabilities()
     if (ContextBase::isFeatureSupported(LOC_SUPPORTED_FEATURE_AGPM_V02)) {
         mask |= LOCATION_CAPABILITIES_AGPM_BIT;
     }
-    if (ContextBase::isFeatureSupported(LOC_SUPPORTED_FEATURE_LOCATION_PRIVACY)) {
-        mask |= LOCATION_CAPABILITIES_PRIVACY_BIT;
-    }
-    if (ContextBase::isFeatureSupported(LOC_SUPPORTED_FEATURE_MEASUREMENTS_CORRECTION)) {
-        mask |= LOCATION_CAPABILITIES_MEASUREMENTS_CORRECTION_BIT;
-    }
-    if (ContextBase::isFeatureSupported(LOC_SUPPORTED_FEATURE_ROBUST_LOCATION)) {
-        mask |= LOCATION_CAPABILITIES_CONFORMITY_INDEX_BIT;
-    }
-    if (ContextBase::isFeatureSupported(LOC_SUPPORTED_FEATURE_EDGNSS)) {
-        mask |= LOCATION_CAPABILITIES_EDGNSS_BIT;
-    }
+    //Get QWES feature status mask
+    mask |= ContextBase::getQwesFeatureStatus();
     return mask;
 }
 
@@ -3707,56 +3702,57 @@ bool GnssAdapter::needToGenerateNmeaReport(const uint32_t &gpsTimeOfWeekMs,
 void
 GnssAdapter::logLatencyInfo()
 {
-    if (0 != mGnssLatencyInfo.meQtimer2) {
-        mGnssLatencyInfo.hlosQtimer5 = getQTimerTickCount();
-
-        if (0 == mGnssLatencyInfo.hlosQtimer3) {
-            /* if SPE from engine hub is not reported then hlosQtimer3 = 0, set it
-            equal to hlosQtimer2 to make sense */
-            LOC_LOGv("hlosQtimer3 is 0, setting it to hlosQtimer2");
-            mGnssLatencyInfo.hlosQtimer3 = mGnssLatencyInfo.hlosQtimer2;
-        }
-        if (0 == mGnssLatencyInfo.hlosQtimer4) {
-            /* if PPE from engine hub is not reported then hlosQtimer4 = 0, set it
-            equal to hlosQtimer3 to make sense */
-            LOC_LOGv("hlosQtimer4 is 0, setting it to hlosQtimer3");
-            mGnssLatencyInfo.hlosQtimer4 = mGnssLatencyInfo.hlosQtimer3;
-        }
-        if (mGnssLatencyInfo.hlosQtimer4 < mGnssLatencyInfo.hlosQtimer3) {
-            /* hlosQtimer3 is timestamped when SPE from engine hub is reported,
-            and hlosQtimer4 is timestamped when PPE from engine hub is reported.
-            The order is random though, hence making sure the timestamps are sorted */
-            LOC_LOGv("hlosQtimer4 is < hlosQtimer3, swapping them");
-            std::swap(mGnssLatencyInfo.hlosQtimer3, mGnssLatencyInfo.hlosQtimer4);
-        }
-        LOC_LOGv("meQtimer1=%" PRIi64 " "
-            "meQtimer2=%" PRIi64 " "
-            "meQtimer3=%" PRIi64 " "
-            "peQtimer1=%" PRIi64 " "
-            "peQtimer2=%" PRIi64 " "
-            "peQtimer3=%" PRIi64 " "
-            "smQtimer1=%" PRIi64 " "
-            "smQtimer2=%" PRIi64 " "
-            "smQtimer3=%" PRIi64 " "
-            "locMwQtimer=%" PRIi64 " "
-            "hlosQtimer1=%" PRIi64 " "
-            "hlosQtimer2=%" PRIi64 " "
-            "hlosQtimer3=%" PRIi64 " "
-            "hlosQtimer4=%" PRIi64 " "
-            "hlosQtimer5=%" PRIi64 " ",
-            mGnssLatencyInfo.meQtimer1, mGnssLatencyInfo.meQtimer2,
-            mGnssLatencyInfo.meQtimer3, mGnssLatencyInfo.peQtimer1,
-            mGnssLatencyInfo.peQtimer2, mGnssLatencyInfo.peQtimer3,
-            mGnssLatencyInfo.smQtimer1, mGnssLatencyInfo.smQtimer2,
-            mGnssLatencyInfo.smQtimer3, mGnssLatencyInfo.locMwQtimer,
-            mGnssLatencyInfo.hlosQtimer1, mGnssLatencyInfo.hlosQtimer2,
-            mGnssLatencyInfo.hlosQtimer3, mGnssLatencyInfo.hlosQtimer4,
-            mGnssLatencyInfo.hlosQtimer5);
-        mLogger.log(mGnssLatencyInfo);
-        mGnssLatencyInfo.hlosQtimer3 = 0;
-        mGnssLatencyInfo.hlosQtimer4 = 0;
-        mGnssLatencyInfo.hlosQtimer5 = 0;
+    if (0 == mGnssLatencyInfoQueue.size()) {
+        LOC_LOGv("mGnssLatencyInfoQueue.size is 0");
+        return;
     }
+    mGnssLatencyInfoQueue.front().hlosQtimer5 = getQTimerTickCount();
+    if (0 == mGnssLatencyInfoQueue.front().hlosQtimer3) {
+        /* if SPE from engine hub is not reported then hlosQtimer3 = 0, set it
+        equal to hlosQtimer2 to make sense */
+        LOC_LOGv("hlosQtimer3 is 0, setting it to hlosQtimer2");
+        mGnssLatencyInfoQueue.front().hlosQtimer3 = mGnssLatencyInfoQueue.front().hlosQtimer2;
+    }
+    if (0 == mGnssLatencyInfoQueue.front().hlosQtimer4) {
+        /* if PPE from engine hub is not reported then hlosQtimer4 = 0, set it
+        equal to hlosQtimer3 to make sense */
+        LOC_LOGv("hlosQtimer4 is 0, setting it to hlosQtimer3");
+        mGnssLatencyInfoQueue.front().hlosQtimer4 = mGnssLatencyInfoQueue.front().hlosQtimer3;
+    }
+    if (mGnssLatencyInfoQueue.front().hlosQtimer4 < mGnssLatencyInfoQueue.front().hlosQtimer3) {
+        /* hlosQtimer3 is timestamped when SPE from engine hub is reported,
+        and hlosQtimer4 is timestamped when PPE from engine hub is reported.
+        The order is random though, hence making sure the timestamps are sorted */
+        LOC_LOGv("hlosQtimer4 is < hlosQtimer3, swapping them");
+        std::swap(mGnssLatencyInfoQueue.front().hlosQtimer3,
+                  mGnssLatencyInfoQueue.front().hlosQtimer4);
+    }
+    LOC_LOGv("meQtimer1=%" PRIi64 " "
+             "meQtimer2=%" PRIi64 " "
+             "meQtimer3=%" PRIi64 " "
+             "peQtimer1=%" PRIi64 " "
+             "peQtimer2=%" PRIi64 " "
+             "peQtimer3=%" PRIi64 " "
+             "smQtimer1=%" PRIi64 " "
+             "smQtimer2=%" PRIi64 " "
+             "smQtimer3=%" PRIi64 " "
+             "locMwQtimer=%" PRIi64 " "
+             "hlosQtimer1=%" PRIi64 " "
+             "hlosQtimer2=%" PRIi64 " "
+             "hlosQtimer3=%" PRIi64 " "
+             "hlosQtimer4=%" PRIi64 " "
+             "hlosQtimer5=%" PRIi64 " ",
+             mGnssLatencyInfoQueue.front().meQtimer1, mGnssLatencyInfoQueue.front().meQtimer2,
+             mGnssLatencyInfoQueue.front().meQtimer3, mGnssLatencyInfoQueue.front().peQtimer1,
+             mGnssLatencyInfoQueue.front().peQtimer2, mGnssLatencyInfoQueue.front().peQtimer3,
+             mGnssLatencyInfoQueue.front().smQtimer1, mGnssLatencyInfoQueue.front().smQtimer2,
+             mGnssLatencyInfoQueue.front().smQtimer3, mGnssLatencyInfoQueue.front().locMwQtimer,
+             mGnssLatencyInfoQueue.front().hlosQtimer1, mGnssLatencyInfoQueue.front().hlosQtimer2,
+             mGnssLatencyInfoQueue.front().hlosQtimer3, mGnssLatencyInfoQueue.front().hlosQtimer4,
+             mGnssLatencyInfoQueue.front().hlosQtimer5);
+    mLogger.log(mGnssLatencyInfoQueue.front());
+    mGnssLatencyInfoQueue.pop();
+    LOC_LOGv("mGnssLatencyInfoQueue.size after pop=%d", mGnssLatencyInfoQueue.size());
 }
 
 // only fused report (when engine hub is enabled) or
@@ -3785,7 +3781,7 @@ GnssAdapter::reportPosition(const UlpLocation& ulpLocation,
         }
 
         GnssLocationInfoNotification locationInfo = {};
-        convertLocationInfo(locationInfo, locationExtended);
+        convertLocationInfo(locationInfo, locationExtended, status);
         convertLocation(locationInfo.location, ulpLocation, locationExtended, techMask);
         logLatencyInfo();
         for (auto it=mClientData.begin(); it != mClientData.end(); ++it) {
@@ -3855,18 +3851,9 @@ GnssAdapter::reportLatencyInfoEvent(const GnssLatencyInfo& gnssLatencyInfo)
             mGnssLatencyInfo(gnssLatencyInfo),
             mAdapter(adapter) {}
         inline virtual void proc() const {
-            mAdapter.mGnssLatencyInfo.meQtimer1 = mGnssLatencyInfo.meQtimer1;
-            mAdapter.mGnssLatencyInfo.meQtimer2 = mGnssLatencyInfo.meQtimer2;
-            mAdapter.mGnssLatencyInfo.meQtimer3 = mGnssLatencyInfo.meQtimer3;
-            mAdapter.mGnssLatencyInfo.peQtimer1 = mGnssLatencyInfo.peQtimer1;
-            mAdapter.mGnssLatencyInfo.peQtimer2 = mGnssLatencyInfo.peQtimer2;
-            mAdapter.mGnssLatencyInfo.peQtimer3 = mGnssLatencyInfo.peQtimer3;
-            mAdapter.mGnssLatencyInfo.smQtimer1 = mGnssLatencyInfo.smQtimer1;
-            mAdapter.mGnssLatencyInfo.smQtimer2 = mGnssLatencyInfo.smQtimer2;
-            mAdapter.mGnssLatencyInfo.smQtimer3 = mGnssLatencyInfo.smQtimer3;
-            mAdapter.mGnssLatencyInfo.locMwQtimer = mGnssLatencyInfo.locMwQtimer;
-            mAdapter.mGnssLatencyInfo.hlosQtimer1 = mGnssLatencyInfo.hlosQtimer1;
-            mAdapter.mGnssLatencyInfo.hlosQtimer2 = mGnssLatencyInfo.hlosQtimer2;
+            mAdapter.mGnssLatencyInfoQueue.push(mGnssLatencyInfo);
+            LOC_LOGv("mGnssLatencyInfoQueue.size after push=%d",
+                      mAdapter.mGnssLatencyInfoQueue.size());
         }
     };
     sendMsg(new MsgReportLatencyInfo(*this, gnssLatencyInfo));
@@ -3897,7 +3884,8 @@ GnssAdapter::reportEnginePositions(unsigned int count,
         }
 
         if (needReportEnginePositions) {
-            convertLocationInfo(locationInfo[i], engLocation->locationExtended);
+            convertLocationInfo(locationInfo[i], engLocation->locationExtended,
+                                engLocation->sessionStatus);
             convertLocation(locationInfo[i].location,
                             engLocation->location,
                             engLocation->locationExtended,
@@ -3908,15 +3896,18 @@ GnssAdapter::reportEnginePositions(unsigned int count,
     const EngineLocationInfo* engLocation = locationArr;
     LOC_LOGv("engLocation->locationExtended.locOutputEngType=%d",
              engLocation->locationExtended.locOutputEngType);
-    if ((GPS_LOCATION_EXTENDED_HAS_OUTPUT_ENG_TYPE & engLocation->locationExtended.flags) &&
-        (LOC_OUTPUT_ENGINE_SPE == engLocation->locationExtended.locOutputEngType)) {
-        mGnssLatencyInfo.hlosQtimer3 = getQTimerTickCount();
-        LOC_LOGv("SPE mGnssLatencyInfo.hlosQtimer3=%" PRIi64 " ", mGnssLatencyInfo.hlosQtimer3);
-    }
-    if ((GPS_LOCATION_EXTENDED_HAS_OUTPUT_ENG_TYPE & engLocation->locationExtended.flags) &&
-        (LOC_OUTPUT_ENGINE_PPE == engLocation->locationExtended.locOutputEngType)) {
-        mGnssLatencyInfo.hlosQtimer4 = getQTimerTickCount();
-        LOC_LOGv("PPE mGnssLatencyInfo.hlosQtimer4=%" PRIi64 " ", mGnssLatencyInfo.hlosQtimer4);
+
+    if (0 != mGnssLatencyInfoQueue.size()) {
+        if ((GPS_LOCATION_EXTENDED_HAS_OUTPUT_ENG_TYPE & engLocation->locationExtended.flags) &&
+            (LOC_OUTPUT_ENGINE_SPE == engLocation->locationExtended.locOutputEngType)) {
+            mGnssLatencyInfoQueue.front().hlosQtimer3 = getQTimerTickCount();
+            LOC_LOGv("SPE hlosQtimer3=%" PRIi64 " ", mGnssLatencyInfoQueue.front().hlosQtimer3);
+        }
+        if ((GPS_LOCATION_EXTENDED_HAS_OUTPUT_ENG_TYPE & engLocation->locationExtended.flags) &&
+            (LOC_OUTPUT_ENGINE_PPE == engLocation->locationExtended.locOutputEngType)) {
+            mGnssLatencyInfoQueue.front().hlosQtimer4 = getQTimerTickCount();
+            LOC_LOGv("PPE hlosQtimer4=%" PRIi64 " ", mGnssLatencyInfoQueue.front().hlosQtimer4);
+        }
     }
     if (needReportEnginePositions) {
         for (auto it=mClientData.begin(); it != mClientData.end(); ++it) {
@@ -4557,8 +4548,12 @@ void GnssAdapter::requestOdcpi(const OdcpiRequestInfo& request)
         // the request is being stopped, but allow timer to expire first
         // before stopping the timer just in case more ODCPI requests come
         // to avoid spamming more odcpi requests to the framework
-        } else {
+        } else if (ODCPI_REQUEST_TYPE_STOP == request.type) {
+            LOC_LOGd("request: type %d, isEmergency %d", request.type, request.isEmergencyMode);
+            mOdcpiRequestCb(request);
             mOdcpiRequestActive = false;
+        } else {
+            LOC_LOGE("Invalid ODCPI request type..");
         }
     } else {
         LOC_LOGw("ODCPI request not supported");
@@ -4587,31 +4582,63 @@ bool GnssAdapter::reportGnssAdditionalSystemInfoEvent(
     return true;
 }
 
-void GnssAdapter::initOdcpiCommand(const OdcpiRequestCallback& callback)
+bool GnssAdapter::reportQwesCapabilities(
+        const std::unordered_map<LocationQwesFeatureType, bool> &featureMap)
+{
+    struct MsgReportQwesFeatureStatus : public LocMsg {
+        GnssAdapter& mAdapter;
+        const std::unordered_map<LocationQwesFeatureType, bool> mFeatureMap;
+        inline MsgReportQwesFeatureStatus(GnssAdapter& adapter,
+                const std::unordered_map<LocationQwesFeatureType, bool> &featureMap) :
+            LocMsg(),
+            mAdapter(adapter),
+            mFeatureMap(std::move(featureMap)) {}
+        inline virtual void proc() const {
+            LOC_LOGi("ReportQwesFeatureStatus before caps %" PRIx64 " ",
+                mAdapter.getCapabilities());
+            ContextBase::setQwesFeatureStatus(mFeatureMap);
+            LOC_LOGi("ReportQwesFeatureStatus After caps %" PRIx64 " ",
+                mAdapter.getCapabilities());
+            mAdapter.broadcastCapabilities(mAdapter.getCapabilities());
+        }
+    };
+
+    sendMsg(new MsgReportQwesFeatureStatus(*this, featureMap));
+    return true;
+}
+
+void GnssAdapter::initOdcpiCommand(const OdcpiRequestCallback& callback,
+            OdcpiPrioritytype priority)
 {
     struct MsgInitOdcpi : public LocMsg {
         GnssAdapter& mAdapter;
         OdcpiRequestCallback mOdcpiCb;
+        OdcpiPrioritytype mPriority;
         inline MsgInitOdcpi(GnssAdapter& adapter,
-                const OdcpiRequestCallback& callback) :
+                const OdcpiRequestCallback& callback,
+                OdcpiPrioritytype priority) :
                 LocMsg(),
                 mAdapter(adapter),
-                mOdcpiCb(callback) {}
+                mOdcpiCb(callback), mPriority(priority){}
         inline virtual void proc() const {
-            mAdapter.initOdcpi(mOdcpiCb);
+            mAdapter.initOdcpi(mOdcpiCb, mPriority);
         }
     };
 
-    sendMsg(new MsgInitOdcpi(*this, callback));
+    sendMsg(new MsgInitOdcpi(*this, callback, priority));
 }
 
-void GnssAdapter::initOdcpi(const OdcpiRequestCallback& callback)
+void GnssAdapter::initOdcpi(const OdcpiRequestCallback& callback,
+            OdcpiPrioritytype priority)
 {
-    mOdcpiRequestCb = callback;
-
-    /* Register for WIFI request */
-    updateEvtMask(LOC_API_ADAPTER_BIT_REQUEST_WIFI,
-            LOC_REGISTRATION_MASK_ENABLED);
+    LOC_LOGd("In priority: %d, Curr priority: %d", priority, mCallbackPriority);
+    if (priority >= mCallbackPriority) {
+        mOdcpiRequestCb = callback;
+        mCallbackPriority = priority;
+        /* Register for WIFI request */
+        updateEvtMask(LOC_API_ADAPTER_BIT_REQUEST_WIFI,
+                LOC_REGISTRATION_MASK_ENABLED);
+    }
 }
 
 void GnssAdapter::injectOdcpiCommand(const Location& location)
@@ -5726,7 +5753,7 @@ GnssAdapter::configLeverArmCommand(const LeverArmConfigInfo& configInfo) {
             mSessionId(sessionId),
             mConfigInfo(configInfo) {}
         inline virtual void proc() const {
-            // save the lever ARM config info for translate position from GNSS antenna based
+            // save the lever ARM config info for translating position from GNSS antenna based
             // to VRP based
             if (mConfigInfo.leverArmValidMask & LEVER_ARM_TYPE_GNSS_TO_VRP_BIT) {
                 mAdapter.mLocConfigInfo.leverArmConfigInfo.leverArmValidMask |=
@@ -5874,6 +5901,47 @@ uint32_t GnssAdapter::configDeadReckoningEngineParamsCommand(
     return sessionId;
 }
 
+uint32_t GnssAdapter::configEngineRunStateCommand(
+        PositioningEngineMask engType, LocEngineRunState engState) {
+
+    // generated session id will be none-zero
+    uint32_t sessionId = generateSessionId();
+    LOC_LOGe("session id %u, eng type 0x%x, eng state %d, dre enabled %d",
+             sessionId, engType, engState, mDreIntEnabled);
+
+    struct MsgConfigEngineRunState : public LocMsg {
+        GnssAdapter& mAdapter;
+        uint32_t     mSessionId;
+        PositioningEngineMask mEngType;
+        LocEngineRunState mEngState;
+
+        inline MsgConfigEngineRunState(GnssAdapter& adapter,
+                                       uint32_t sessionId,
+                                       PositioningEngineMask engType,
+                                       LocEngineRunState engState) :
+            LocMsg(),
+            mAdapter(adapter),
+            mSessionId(sessionId),
+            mEngType(engType),
+            mEngState(engState) {}
+        inline virtual void proc() const {
+            LocationError err = LOCATION_ERROR_NOT_SUPPORTED;
+            // Currently, only DR engine supports pause/resume request
+            if ((mEngType == DEAD_RECKONING_ENGINE) &&
+                (mAdapter.mDreIntEnabled == true)) {
+                if (true == mAdapter.mEngHubProxy->configEngineRunState(mEngType, mEngState)) {
+                    err = LOCATION_ERROR_SUCCESS;
+                }
+            }
+            mAdapter.reportResponse(err, mSessionId);
+        }
+    };
+
+    sendMsg(new MsgConfigEngineRunState(*this, sessionId, engType, engState));
+
+    return sessionId;
+}
+
 void GnssAdapter::reportGnssConfigEvent(uint32_t sessionId, const GnssConfig& gnssConfig)
 {
     struct MsgReportGnssConfig : public LocMsg {
@@ -5948,7 +6016,12 @@ GnssAdapter::initEngHubProxy() {
                          strlen(PROCESS_NAME_ENGINE_SERVICE)) == 0) &&
                 (processInfoList[i].proc_status == ENABLED)) {
                 pluginDaemonEnabled = true;
-                break;
+                // check if this is DRE-INT engine
+                if ((processInfoList[i].args[1]!= nullptr) &&
+                    (strncmp(processInfoList[i].args[1], "DRE-INT", sizeof("DRE-INT")) == 0)) {
+                    mDreIntEnabled = true;
+                    break;
+                }
             }
         }
 
@@ -6008,14 +6081,20 @@ GnssAdapter::initEngHubProxy() {
                 mNHzNeeded = nHzNeeded;
                 checkAndRestartSPESession();
             }
-       };
+        };
+
+        GnssAdapterUpdateQwesFeatureStatusCb updateQwesFeatureStatusCb =
+            [this] (const std::unordered_map<LocationQwesFeatureType, bool> &featureMap) {
+            reportQwesCapabilities(featureMap);
+        };
 
         getEngHubProxyFn* getter = (getEngHubProxyFn*) dlsym(handle, "getEngHubProxy");
         if(getter != nullptr) {
             EngineHubProxyBase* hubProxy = (*getter) (mMsgTask, mSystemStatus->getOsObserver(),
-                                                      reportPositionEventCb,
-                                                      reportSvEventCb, reqAidingDataCb,
-                                                      updateNHzRequirementCb);
+                      reportPositionEventCb,
+                      reportSvEventCb, reqAidingDataCb,
+                      updateNHzRequirementCb,
+                      updateQwesFeatureStatusCb);
             if (hubProxy != nullptr) {
                 mEngHubProxy = hubProxy;
                 engHubLoadSuccessful = true;
