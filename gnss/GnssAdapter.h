@@ -37,6 +37,8 @@
 #include <Agps.h>
 #include <SystemStatus.h>
 #include <XtraSystemStatusObserver.h>
+#include <loc_misc_utils.h>
+#include <queue>
 
 #define MAX_URL_LEN 256
 #define NMEA_SENTENCE_MAX_LENGTH 200
@@ -140,6 +142,7 @@ typedef struct {
     TuncConfigInfo tuncConfigInfo;
     PaceConfigInfo paceConfigInfo;
     RobustLocationConfigInfo robustLocationConfigInfo;
+    LeverArmConfigInfo  leverArmConfigInfo;
 } LocIntegrationConfigInfo;
 
 using namespace loc_core;
@@ -166,6 +169,23 @@ struct CdfwInterface {
     void (*destroyUsableReporter)(QDgnssListenerHDL handle);
 
     void (*reportUsable)(QDgnssListenerHDL handle, bool usable);
+};
+
+class GnssReportLoggerUtil {
+public:
+    typedef void (*LogGnssLatency)(const GnssLatencyInfo& gnssLatencyMeasInfo);
+
+    GnssReportLoggerUtil() : mLogLatency(nullptr) {
+        const char* libname = "liblocdiagiface.so";
+        void* libHandle = nullptr;
+        mLogLatency = (LogGnssLatency)dlGetSymFromLib(libHandle, libname, "LogGnssLatency");
+    }
+
+    bool isLogEnabled();
+    void log(const GnssLatencyInfo& gnssLatencyMeasInfo);
+
+private:
+    LogGnssLatency mLogLatency;
 };
 
 class GnssAdapter : public LocAdapterBase {
@@ -232,6 +252,9 @@ class GnssAdapter : public LocAdapterBase {
 
     /* === Misc ===================================================================== */
     BlockCPIInfo mBlockCPIInfo;
+    std::queue<GnssLatencyInfo> mGnssLatencyInfoQueue;
+    GnssReportLoggerUtil mLogger;
+    bool mDreIntEnabled;
 
     /* === Misc callback from QMI LOC API ============================================== */
     GnssEnergyConsumedCallback mGnssEnergyConsumedCb;
@@ -242,7 +265,8 @@ class GnssAdapter : public LocAdapterBase {
                                 const GpsLocationExtended& locationExtended,
                                 const LocPosTechMask techMask);
     static void convertLocationInfo(GnssLocationInfoNotification& out,
-                                    const GpsLocationExtended& locationExtended);
+                                    const GpsLocationExtended& locationExtended,
+                                    loc_sess_status status);
     static uint16_t getNumSvUsed(uint64_t svUsedIdsMask,
                                  int totalSvCntInThisConstellation);
 
@@ -250,6 +274,7 @@ class GnssAdapter : public LocAdapterBase {
     inline void initOdcpi(const OdcpiRequestCallback& callback);
     inline void injectOdcpi(const Location& location);
     inline void setNmeaReportRateConfig();
+    void logLatencyInfo();
 
 public:
 
@@ -401,6 +426,8 @@ public:
     uint32_t configRobustLocationCommand(bool enable, bool enableForE911);
     uint32_t configMinGpsWeekCommand(uint16_t minGpsWeek);
     uint32_t configDeadReckoningEngineParamsCommand(const DeadReckoningEngineConfig& dreConfig);
+    uint32_t configEngineRunStateCommand(PositioningEngineMask engType,
+                                         LocEngineRunState engState);
 
     /* ========= ODCPI ===================================================================== */
     /* ======== COMMANDS ====(Called from Client Thread)==================================== */
@@ -435,7 +462,6 @@ public:
     virtual void reportSvEvent(const GnssSvNotification& svNotify,
                                bool fromEngineHub=false);
     virtual void reportNmeaEvent(const char* nmea, size_t length);
-    virtual void reportDataEvent(const GnssDataNotification& dataNotify, int msInWeek);
     virtual bool requestNiNotifyEvent(const GnssNiNotification& notify, const void* data);
     virtual void reportGnssMeasurementDataEvent(const GnssMeasurementsNotification& measurements,
                                                 int msInWeek);
@@ -455,6 +481,11 @@ public:
     virtual bool reportKlobucharIonoModelEvent(GnssKlobucharIonoModel& ionoModel);
     virtual bool reportGnssAdditionalSystemInfoEvent(
             GnssAdditionalSystemInfo& additionalSystemInfo);
+    virtual void reportLatencyInfoEvent(const GnssLatencyInfo& gnssLatencyInfo);
+    virtual bool reportQwesCapabilities
+    (
+        const std::unordered_map<LocationQwesFeatureType, bool> &featureMap
+    );
 
     /* ======== UTILITIES ================================================================= */
     bool needReport(const UlpLocation& ulpLocation,
@@ -512,6 +543,8 @@ public:
     static void convertGnssSvIdMaskToList(
             uint64_t svIdMask, std::vector<GnssSvIdSource>& svIds,
             GnssSvId initialSvId, GnssSvType svType);
+    static void computeVRPBasedLla(const UlpLocation& loc, GpsLocationExtended& locExt,
+                                   const LeverArmConfigInfo& leverArmConfigInfo);
 
     void injectLocationCommand(double latitude, double longitude, float accuracy);
     void injectLocationExtCommand(const GnssLocationInfoNotification &locationInfo);
