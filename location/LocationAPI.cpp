@@ -872,3 +872,18 @@ uint32_t LocationControlAPI::configDeadReckoningEngineParams(
     pthread_mutex_unlock(&gDataMutex);
     return id;
 }
+
+uint32_t LocationControlAPI::configOutputNmeaTypes(
+            GnssNmeaTypesMask enabledNmeaTypes) {
+    uint32_t id = 0;
+    pthread_mutex_lock(&gDataMutex);
+
+    if (gData.gnssInterface != NULL) {
+        id = gData.gnssInterface->configOutputNmeaTypes(enabledNmeaTypes);
+    } else {
+        LOC_LOGe("No gnss interface available for Location Control API");
+    }
+
+    pthread_mutex_unlock(&gDataMutex);
+    return id;
+}
