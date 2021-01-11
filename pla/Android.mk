@@ -1,3 +1,4 @@
+ifneq ($(PLATFORM_VERSION),$(filter $(PLATFORM_VERSION), 9 P))
 GNSS_CFLAGS := \
     -Werror \
     -Wno-error=unused-parameter \
@@ -14,6 +15,7 @@ GNSS_CFLAGS := \
     -Wno-error=tautological-compare \
     -Wno-error=switch \
     -Wno-error=date-time
+endif
 
 ifneq ($(BOARD_VENDOR_QCOM_GPS_LOC_API_HARDWARE),)
 ifneq ($(BUILD_TINY_ANDROID),true)

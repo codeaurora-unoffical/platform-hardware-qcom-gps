@@ -34,6 +34,10 @@
 #include <LocationAPI.h>
 #include <GnssDebug.h>
 
+#ifdef ANDROID_P_AOSP
+#include "gps_extended_c.h"
+#endif
+
 namespace android {
 namespace hardware {
 namespace gnss {

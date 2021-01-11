@@ -2248,6 +2248,11 @@ GnssAdapter::updateClientsEventMask()
             mask |= LOC_API_ADAPTER_BIT_NMEA_1HZ_REPORT;
             updateNmeaMask(mNmeaMask | LOC_NMEA_MASK_DEBUG_V02);
         }
+
+        if ((IS_SS5_HW_ENABLED == ContextBase::mGps_conf.GNSS_DEPLOYMENT) &&
+           (nullptr != it->second.gnssRequestTimeCb)) {
+           mask |= LOC_API_ADAPTER_BIT_REQUEST_TIME_SYNC;
+        }
     }
 
     /*
@@ -2475,15 +2480,15 @@ GnssAdapter::reportPowerStateIfChanged()
 }
 
 void
-GnssAdapter::getPowerStateChangesCommand(void* powerStateCb)
+GnssAdapter::getPowerStateChangesCommand(std::function<void(bool)> powerStateCb)
 {
     LOC_LOGD("%s]: ", __func__);
 
     struct MsgReportLocation : public LocMsg {
         GnssAdapter& mAdapter;
-        powerStateCallback mPowerStateCb;
+        std::function<void(bool)> mPowerStateCb;
         inline MsgReportLocation(GnssAdapter& adapter,
-                                 powerStateCallback powerStateCb) :
+                                 std::function<void(bool)> powerStateCb) :
             LocMsg(),
             mAdapter(adapter),
             mPowerStateCb(powerStateCb) {}
@@ -2493,7 +2498,7 @@ GnssAdapter::getPowerStateChangesCommand(void* powerStateCb)
         }
     };
 
-    sendMsg(new MsgReportLocation(*this, (powerStateCallback)powerStateCb));
+    sendMsg(new MsgReportLocation(*this, powerStateCb));
 }
 
 void
@@ -4013,6 +4018,34 @@ GnssAdapter::reportLocationSystemInfo(const LocationSystemInfo & locationSystemI
             if (it->second.locationSystemInfoCb != nullptr) {
                 it->second.locationSystemInfoCb(locationSystemInfo);
             }
+        }
+    }
+}
+
+
+bool
+GnssAdapter::requestTime() {
+
+    struct MsgRequestTime : public LocMsg {
+        GnssAdapter& mAdapter;
+        inline MsgRequestTime(GnssAdapter& adapter) :
+            LocMsg(),
+            mAdapter(adapter) {}
+        inline virtual void proc() const {
+            mAdapter.requestTimeInternal();
+        }
+    };
+
+    sendMsg(new MsgRequestTime(*this));
+    return true;
+}
+
+void
+GnssAdapter::requestTimeInternal() {
+
+    for (auto it = mClientData.begin(); it != mClientData.end(); ++it) {
+        if (nullptr != it->second.gnssRequestTimeCb) {
+            it->second.gnssRequestTimeCb();
         }
     }
 }

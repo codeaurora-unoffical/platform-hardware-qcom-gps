@@ -244,6 +244,7 @@ public:
     inline virtual void onGnssDataCb(GnssDataNotification /*gnssDataNotification*/) {}
     inline virtual void onGnssMeasurementsCb(
             GnssMeasurementsNotification /*gnssMeasurementsNotification*/) {}
+    inline virtual void onGnssRequestTimeCb() {}
 
     inline virtual void onTrackingCb(Location /*location*/) {}
     inline virtual void onGnssSvCb(GnssSvNotification /*gnssSvNotification*/) {}

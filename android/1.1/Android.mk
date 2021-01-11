@@ -79,6 +79,9 @@ LOCAL_HEADER_LIBRARIES := \
     libloc_pla_headers \
     liblocation_api_headers
 
+ifeq (,$(findstring ANDROID_P_AOSP,$(GNSS_CFLAGS)))
+    LIBVNDK_DETECT := libqti_vndfwk_detect
+endif
 
 LOCAL_SHARED_LIBRARIES := \
     liblog \
@@ -87,7 +90,7 @@ LOCAL_SHARED_LIBRARIES := \
     libbase \
     libutils \
     libgps.utils \
-    libqti_vndfwk_detect \
+    $(LIBVNDK_DETECT) \
 
 LOCAL_SHARED_LIBRARIES += \
     libhwbinder \
