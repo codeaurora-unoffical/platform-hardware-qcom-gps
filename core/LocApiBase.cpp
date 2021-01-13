@@ -956,7 +956,7 @@ int64_t ElapsedRealtimeEstimator::getElapsedRealtimeEstimateNanos(int64_t curDat
             if (tbf > 0 && tbf != curDataTimeNanos - mPrevDataTimeNanos) {
                 mFixTimeStablizationThreshold = 5;
             }
-            int64_t currentTimeNanos = currentTime.tv_sec*1000000000 + currentTime.tv_nsec;
+            int64_t currentTimeNanos = (int64_t)currentTime.tv_sec*1000000000 + currentTime.tv_nsec;
             LOC_LOGd("sinceBootTimeNanos:%" PRIi64 " currentTimeNanos:%" PRIi64 ""
                      " locationTimeNanos:%" PRIi64 "",
                      sinceBootTimeNanos, currentTimeNanos, curDataTimeNanos);
@@ -1048,9 +1048,9 @@ bool ElapsedRealtimeEstimator::getCurrentTime(
         if (clock_gettime(CLOCK_BOOTTIME, &sinceBootTimeTest) != 0) {
             break;
         };
-        sinceBootTimeNanos = sinceBootTime.tv_sec * 1000000000 + sinceBootTime.tv_nsec;
+        sinceBootTimeNanos = (int64_t)sinceBootTime.tv_sec * 1000000000 + sinceBootTime.tv_nsec;
         int64_t sinceBootTimeTestNanos =
-            sinceBootTimeTest.tv_sec * 1000000000 + sinceBootTimeTest.tv_nsec;
+            (int64_t)sinceBootTimeTest.tv_sec * 1000000000 + sinceBootTimeTest.tv_nsec;
         int64_t sinceBootTimeDeltaNanos = sinceBootTimeTestNanos - sinceBootTimeNanos;
 
         /* sinceBootTime and sinceBootTimeTest should have a close value if there was no
