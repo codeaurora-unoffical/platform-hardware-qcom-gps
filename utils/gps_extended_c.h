@@ -479,6 +479,7 @@ typedef uint32_t GnssAdditionalSystemInfoMask;
 #define GAL_SV_PRN_MAX      336
 #define NAVIC_SV_PRN_MIN    401
 #define NAVIC_SV_PRN_MAX    414
+#define GLO_SV_PRN_SLOT_UNKNOWN 255
 
 typedef uint32_t LocPosTechMask;
 #define LOC_POS_TECH_MASK_DEFAULT ((LocPosTechMask)0x00000000)
@@ -497,6 +498,8 @@ typedef uint32_t LocPosTechMask;
 /* Setting svIdOneBase specific bit in the mask if the bit offset fits */
 #define setSvMask(mask, svIdOneBase)                  \
     if (svFitsMask(mask, svIdOneBase)) mask |= (1ULL << ((svIdOneBase) - 1))
+
+#define isGloSlotUnknown(val) ((val) == GLO_SV_PRN_SLOT_UNKNOWN)
 
 typedef enum {
     LOC_RELIABILITY_NOT_SET = 0,
