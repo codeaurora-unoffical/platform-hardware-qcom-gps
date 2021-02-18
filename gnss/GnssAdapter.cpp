@@ -461,35 +461,6 @@ GnssAdapter::convertLocationInfo(GnssLocationInfoNotification& out,
         out.bodyFrameData.yawRate = locationExtended.bodyFrameData.yawRate;
         out.bodyFrameData.pitch = locationExtended.bodyFrameData.pitch;
     }
-    if (GPS_LOCATION_EXTENDED_HAS_GPS_TIME & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_GPS_TIME;
-        out.gnssSystemTime.gnssSystemTimeSrc = locationExtended.gnssSystemTime.gnssSystemTimeSrc;
-        out.gnssSystemTime.u = locationExtended.gnssSystemTime.u;
-    }
-    if (GPS_LOCATION_EXTENDED_HAS_NORTH_VEL & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_NORTH_VEL;
-        out.northVelocity = locationExtended.northVelocity;
-    }
-    if (GPS_LOCATION_EXTENDED_HAS_EAST_VEL & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_EAST_VEL;
-        out.eastVelocity = locationExtended.eastVelocity;
-    }
-    if (GPS_LOCATION_EXTENDED_HAS_UP_VEL & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_UP_VEL;
-        out.upVelocity = locationExtended.upVelocity;
-    }
-    if (GPS_LOCATION_EXTENDED_HAS_NORTH_VEL_UNC & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_NORTH_VEL_UNC;
-        out.northVelocityStdDeviation = locationExtended.northVelocityStdDeviation;
-    }
-    if (GPS_LOCATION_EXTENDED_HAS_EAST_VEL_UNC & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_EAST_VEL_UNC;
-        out.eastVelocityStdDeviation = locationExtended.eastVelocityStdDeviation;
-    }
-    if (GPS_LOCATION_EXTENDED_HAS_UP_VEL_UNC & locationExtended.flags) {
-        out.flags |= GPS_LOCATION_EXTENDED_HAS_UP_VEL_UNC;
-        out.upVelocityStdDeviation = locationExtended.upVelocityStdDeviation;
-    }
 
     // Validity of this structure is established from the timeSrc of the GnssSystemTime structure.
     out.gnssSystemTime = locationExtended.gnssSystemTime;
@@ -533,8 +504,6 @@ GnssAdapter::convertLocationInfo(GnssLocationInfoNotification& out,
         out.drSolutionStatusMask = locationExtended.drSolutionStatusMask;
     }
 }
-
-
 
 inline uint32_t
 GnssAdapter::convertSuplVersion(const GnssConfigSuplVersion suplVersion)
@@ -1901,7 +1870,17 @@ GnssAdapter::gnssDeleteAidingDataCommand(GnssAidingData& data)
                 }
             }
 
-            mAdapter.mEngHubProxy->gnssDeleteAidingData(mData);
+            bool retVal = mAdapter.mEngHubProxy->gnssDeleteAidingData(mData);
+            // When SPE engine is invoked, responseCb will be invoked
+            // from QMI Loc API call.
+            // When SPE engine is not invoked, we also need to deliver responseCb
+            if ((mData.posEngineMask & STANDARD_POSITIONING_ENGINE) == 0) {
+                LocationError err = LOCATION_ERROR_NOT_SUPPORTED;
+                if (retVal == true) {
+                    err = LOCATION_ERROR_SUCCESS;
+                }
+                mAdapter.reportResponse(err, mSessionId);
+            }
         }
     };
 
